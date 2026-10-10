@@ -120,7 +120,7 @@ void retro_set_audio_sample(retro_audio_sample_t cb);
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb);
 void retro_set_input_poll(retro_input_poll_t cb);
 void retro_set_input_state(retro_input_state_t cb);
-void retro_load_game(const struct retro_game_info *game);
+bool retro_load_game(const struct retro_game_info *game);
 void retro_unload_game(void);
 void retro_run(void);
 void retro_reset(void);
