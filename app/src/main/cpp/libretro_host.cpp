@@ -110,26 +110,28 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
         case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
             struct retro_system_av_info *info = (struct retro_system_av_info *)data;
-            if (!info) {
-                LOGW("SET_SYSTEM_AV_INFO: null data");
-                return true;
+            unsigned w = 0, h = 0;
+            double fps = 0.0;
+            if (info) {
+                w = info->geometry.base_width;
+                h = info->geometry.base_height;
+                fps = info->timing.fps;
             }
-            unsigned w = info->geometry.base_width;
-            unsigned h = info->geometry.base_height;
-            double fps = info->timing.fps;
             if (w == 0 || h == 0 || w > 4096 || h > 4096) {
-                LOGW("SET_SYSTEM_AV_INFO: ignoring invalid %ux%u fps=%.2f", w, h, fps);
-                return true;
+                LOGW("av_info invalid %ux%u fps=%.2f -> fallback 480x272", w, h, fps);
+                w = 480;
+                h = 272;
+            } else {
+                LOGI("av_info valid %ux%u fps=%.2f", w, h, fps);
             }
-            LOGI("SET_SYSTEM_AV_INFO valid %ux%u fps=%.2f", w, h, fps);
             int mult = s_render_w / 480;
             if (mult < 1) mult = 1;
             if (mult > 8) mult = 8;
             int sw = (int)w * mult;
             int sh = (int)h * mult;
-            LOGI("av_info apply scale=%d -> %dx%d", mult, sw, sh);
             s_render_w = sw;
             s_render_h = sh;
+            LOGI("av_info apply %dx%d scale=%d", sw, sh, mult);
             extern void ultraman_video_set_hw_size(int, int);
             ultraman_video_set_hw_size(sw, sh);
             return true;
@@ -176,28 +178,30 @@ static bool env_cb(unsigned cmd, void *data) {
 
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
 
-            cb->context_type           = RETRO_HW_CONTEXT_OPENGL_ES3;
-            cb->context_reset          = ours->context_reset;
-            cb->context_destroy        = ours->context_destroy;
-            cb->get_current_framebuffer= ours->get_current_framebuffer;
-            cb->get_proc_address       = ours->get_proc_address;
-            cb->depth                  = true;
-            cb->stencil                = true;
-            cb->bottom_left_origin     = false;
-            cb->version_major          = 3;
-            cb->version_minor          = 0;
-            cb->cache_context          = false;
-            cb->debug_context          = false;
+            cb->context_reset           = ours->context_reset;
+            cb->context_destroy         = ours->context_destroy;
+            cb->get_current_framebuffer = ours->get_current_framebuffer;
+            cb->get_proc_address        = ours->get_proc_address;
+            cb->depth                   = true;
+            cb->stencil                 = true;
+            cb->bottom_left_origin      = false;
+            cb->cache_context           = false;
+            cb->debug_context           = false;
+
+            if (requested == RETRO_HW_CONTEXT_OPENGL_ES2) {
+                cb->version_major = 2;
+                cb->version_minor = 0;
+            } else {
+                cb->version_major = 3;
+                cb->version_minor = 0;
+            }
 
             s_hw_render = true;
-            LOGI("HW accepted: reported ES3 ver=3.0 (requested was %d)", requested);
+            LOGI("HW accepted: type=%d ver=%u.%u", requested,
+                 cb->version_major, cb->version_minor);
 
             if (ultraman_video_is_ready()) {
-                if (!ultraman_video_create_fbo_now()) {
-                    LOGE("create_fbo_now failed");
-                    s_hw_render = false;
-                    return false;
-                }
+                ultraman_video_create_fbo_now();
             }
             return true;
         }
@@ -232,10 +236,13 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
-        case RETRO_ENVIRONMENT_SHUTDOWN:
+        case RETRO_ENVIRONMENT_SHUTDOWN: {
+            extern void ultraman_video_dump_gl_errors();
+            ultraman_video_dump_gl_errors();
             LOGW(">>> core requested SHUTDOWN, stopping loop <<<");
             s_run.store(false);
             return true;
+        }
         case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
             *(unsigned *)data = 1;
             return true;
@@ -309,6 +316,8 @@ void ultraman_start_loop() {
         if (s_hw_render) {
             LOGI("loop: binding EGL context");
             ultraman_video_make_current();
+            extern void ultraman_video_dump_gl_errors();
+            ultraman_video_dump_gl_errors();
         }
         while (s_run.load()) {
             if (!s_run.load()) break;

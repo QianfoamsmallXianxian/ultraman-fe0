@@ -123,6 +123,15 @@ static void sw_setup() {
     LOGI("sw setup done");
 }
 
+static void clear_gl_errors() {
+    GLenum e;
+    int c = 0;
+    while ((e = glGetError()) != GL_NO_ERROR && c < 16) {
+        LOGW("clear_gl_error 0x%x", e);
+        c++;
+    }
+}
+
 static bool ensure_current() {
     GLLOCK;
     if (eglGetCurrentContext() == g_ctx) return true;
@@ -133,6 +142,7 @@ static bool ensure_current() {
         return false;
     }
     g_current_sfc = g_sfc;
+    clear_gl_errors();
     return true;
 }
 
@@ -591,4 +601,18 @@ void ultraman_video_release_current() {
     eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
     g_current_sfc = EGL_NO_SURFACE;
     LOGI("release_current done");
+}
+
+
+void ultraman_video_dump_gl_errors() {
+    GLLOCK;
+    if (g_dpy == EGL_NO_DISPLAY) { LOGW("dump: no display"); return; }
+    if (eglGetCurrentContext() != g_ctx) LOGW("dump: ctx not current");
+    GLenum e;
+    int c = 0;
+    while ((e = glGetError()) != GL_NO_ERROR && c < 16) {
+        LOGW("dump_error 0x%x", e);
+        c++;
+    }
+    if (c == 0) LOGW("dump: no GL errors");
 }
