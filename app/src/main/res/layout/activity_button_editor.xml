@@ -1,88 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#0A0E14">
+
     <com.ultraman.fe0.ButtonEditorView
         android:id="@+id/editor"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_height="match_parent" />
+
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="#CC141B26"
         android:orientation="vertical"
-        android:background="#141B26"
-        android:padding="16dp">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="按钮大小"
-            android:textColor="#E0E6ED"
-            android:textSize="14sp"/>
-        <SeekBar
-            android:id="@+id/sbSize"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"/>
+        android:padding="10dp">
+
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="按钮透明度"
+                android:text="大小"
                 android:textColor="#E0E6ED"
-                android:textSize="14sp"/>
+                android:textSize="12sp"/>
             <TextView
                 android:id="@+id/tvAlpha"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="50%"
                 android:textColor="#4A8CFF"
-                android:textSize="14sp"/>
+                android:textSize="12sp"/>
         </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/sbSize"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"/>
+
         <SeekBar
             android:id="@+id/sbAlpha"
-            android:layout_width="match_parent"
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"/>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
-            <Button
-                android:id="@+id/btnReset"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_btn_secondary"
-                android:text="重置"
-                android:textColor="#7D8FA8"/>
-            <Button
-                android:id="@+id/btnBack"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_btn_secondary"
-                android:text="取消"
-                android:textColor="#7D8FA8"/>
-            <Button
-                android:id="@+id/btnSave"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_btn_primary"
-                android:text="保存"
-                android:textColor="#FFFFFF"/>
-        </LinearLayout>
+            android:layout_marginTop="2dp"/>
     </LinearLayout>
-</LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnReset"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:background="@drawable/bg_btn_secondary"
+            android:paddingHorizontal="16dp"
+            android:text="重置"
+            android:textColor="#7D8FA8"
+            android:textSize="12sp"/>
+
+        <Button
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_btn_secondary"
+            android:paddingHorizontal="16dp"
+            android:text="取消"
+            android:textColor="#7D8FA8"
+            android:textSize="12sp"/>
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_btn_primary"
+            android:paddingHorizontal="16dp"
+            android:text="保存"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"/>
+    </LinearLayout>
+</FrameLayout>

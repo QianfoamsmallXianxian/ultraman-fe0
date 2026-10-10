@@ -27,7 +27,8 @@
         <activity
             android:name=".ButtonEditorActivity"
             android:exported="false"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
