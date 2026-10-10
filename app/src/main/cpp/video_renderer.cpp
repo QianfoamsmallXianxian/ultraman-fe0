@@ -125,11 +125,10 @@ static void sw_setup() {
 
 static bool ensure_current() {
     GLLOCK;
-    if (g_current_sfc == g_sfc && eglGetCurrentContext() == g_ctx) {
-        return true;
-    }
+    if (eglGetCurrentContext() == g_ctx) return true;
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return false;
     if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
-        LOGE("eglMakeCurrent failed 0x%x", eglGetError());
+        LOGE("ensure_current fail 0x%x", eglGetError());
         g_current_sfc = EGL_NO_SURFACE;
         return false;
     }
@@ -563,4 +562,26 @@ bool ultraman_video_create_fbo_now() {
     gl_state_reset();
     LOGI("create_fbo_now: OK fbo=%u", g_hw_fbo);
     return true;
+}
+
+bool ultraman_video_make_current() {
+    GLLOCK;
+    if (!g_video_ready.load() || !g_surface_ok.load()) return false;
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return false;
+    if (eglGetCurrentContext() == g_ctx) return true;
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+        LOGE("make_current failed 0x%x", eglGetError());
+        return false;
+    }
+    g_current_sfc = g_sfc;
+    return true;
+}
+
+void ultraman_video_release_current() {
+    GLLOCK;
+    if (g_dpy == EGL_NO_DISPLAY) return;
+    if (eglGetCurrentContext() == EGL_NO_CONTEXT) return;
+    eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    g_current_sfc = EGL_NO_SURFACE;
+    LOGI("release_current done");
 }

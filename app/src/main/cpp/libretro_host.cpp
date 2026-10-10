@@ -24,6 +24,8 @@ extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_video_present();
 extern bool ultraman_video_is_ready();
 extern bool ultraman_video_create_fbo_now();
+extern bool ultraman_video_make_current();
+extern void ultraman_video_release_current();
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
@@ -297,8 +299,15 @@ bool ultraman_load_game(const std::string &path) {
 void ultraman_start_loop() {
     if (s_run.exchange(true)) return;
     LOGI("start loop");
+
+    ultraman_video_release_current();
+
     s_thread = std::thread([]{
         LOGI("loop thread started");
+        if (s_hw_render) {
+            LOGI("loop: binding EGL context");
+            ultraman_video_make_current();
+        }
         while (s_run.load()) {
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
