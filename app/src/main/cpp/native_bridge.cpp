@@ -10,6 +10,34 @@ extern void ultraman_set_surface(JNIEnv *, jobject);
 extern void ultraman_set_audio_enabled(bool);
 extern void ultraman_push_key(int, int, bool);
 extern void ultraman_set_options(int, bool, bool);
+extern bool ultraman_save_state(const char *path);
+extern bool ultraman_load_state(const char *path);
+extern bool ultraman_save_sram(const char *path);
+extern bool ultraman_load_sram(const char *path);
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSaveState(JNIEnv *env, jclass, jstring jp) {
+    const char *p = env->GetStringUTFChars(jp, nullptr);
+    bool ok = ultraman_save_state(p);
+    env->ReleaseStringUTFChars(jp, p);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeLoadState(JNIEnv *env, jclass, jstring jp) {
+    const char *p = env->GetStringUTFChars(jp, nullptr);
+    bool ok = ultraman_load_state(p);
+    env->ReleaseStringUTFChars(jp, p);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSaveSram(JNIEnv *env, jclass, jstring jp) {
+    const char *p = env->GetStringUTFChars(jp, nullptr);
+    bool ok = ultraman_save_sram(p);
+    env->ReleaseStringUTFChars(jp, p);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeLoadSram(JNIEnv *env, jclass, jstring jp) {
+    const char *p = env->GetStringUTFChars(jp, nullptr);
+    bool ok = ultraman_load_sram(p);
+    env->ReleaseStringUTFChars(jp, p);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
     ulog_init("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs");
     ulog_init("/data/data/com.ultraman.fe0/files/logs");

@@ -28,6 +28,10 @@ object EmulatorBridge {
     external fun nativeSetSurface(surface: Surface?)
     external fun nativeSetAudioEnabled(enabled: Boolean)
     external fun nativeKey(port: Int, id: Int, down: Boolean)
+    external fun nativeSaveState(path: String): Boolean
+    external fun nativeLoadState(path: String): Boolean
+    external fun nativeSaveSram(path: String): Boolean
+    external fun nativeLoadSram(path: String): Boolean
     external fun nativeReset()
     external fun nativeVersion(): String
 

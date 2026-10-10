@@ -202,3 +202,62 @@ void ultraman_stop_loop() {
         ultraman_audio_stop();
     }
 }
+
+#include <cstdio>
+#include <sys/stat.h>
+
+bool ultraman_save_state(const char *path) {
+    size_t size = retro_serialize_size();
+    if (size == 0) { LOGE("serialize_size=0"); return false; }
+    void *buf = malloc(size);
+    if (!buf) return false;
+    if (!retro_serialize(buf, size)) { free(buf); return false; }
+    FILE *f = fopen(path, "wb");
+    if (!f) { free(buf); LOGE("open fail: %s", path); return false; }
+    size_t w = fwrite(buf, 1, size, f);
+    fclose(f);
+    free(buf);
+    LOGI("saved %zu bytes to %s", w, path);
+    return w == size;
+}
+
+bool ultraman_load_state(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) { LOGE("no file: %s", path); return false; }
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz <= 0) { fclose(f); return false; }
+    void *buf = malloc((size_t)sz);
+    if (!buf) { fclose(f); return false; }
+    size_t r = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    bool ok = retro_unserialize(buf, r);
+    free(buf);
+    LOGI("loaded %zu bytes from %s -> %d", r, path, ok);
+    return ok;
+}
+
+bool ultraman_save_sram(const char *path) {
+    void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    if (!data || size == 0) { LOGE("no sram"); return false; }
+    FILE *f = fopen(path, "wb");
+    if (!f) return false;
+    size_t w = fwrite(data, 1, size, f);
+    fclose(f);
+    LOGI("sram saved %zu bytes to %s", w, path);
+    return w == size;
+}
+
+bool ultraman_load_sram(const char *path) {
+    void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    if (!data || size == 0) { LOGE("no sram"); return false; }
+    FILE *f = fopen(path, "rb");
+    if (!f) { LOGI("no sram file, skip: %s", path); return false; }
+    size_t r = fread(data, 1, size, f);
+    fclose(f);
+    LOGI("sram loaded %zu bytes from %s", r, path);
+    return r > 0;
+}
