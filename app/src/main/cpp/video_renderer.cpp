@@ -288,15 +288,17 @@ void ultraman_video_present() {
     int vpW, vpH, vpX, vpY;
     if (srcA > dstA) {
         vpW = winW;
-        vpH = (int)((float)winW / srcA);
+        vpH = (int)((float)winW / srcA + 0.5f);
         vpX = 0;
         vpY = (winH - vpH) / 2;
     } else {
         vpH = winH;
-        vpW = (int)((float)winH * srcA);
+        vpW = (int)((float)winH * srcA + 0.5f);
         vpX = (winW - vpW) / 2;
         vpY = 0;
     }
+    if (vpW <= 0) vpW = 1;
+    if (vpH <= 0) vpH = 1;
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
