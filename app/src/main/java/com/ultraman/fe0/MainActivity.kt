@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         btnSettings = findViewById(R.id.btnSettings)
 
         EmulatorBridge.nativeInit(this)
-        tvCore.text = "core: ${EmulatorBridge.nativeVersion()}"
+        tvCore.text = "core: ppsspp"
 
         btnPick.setOnClickListener { filePicker.launch(arrayOf("*/*")) }
 
