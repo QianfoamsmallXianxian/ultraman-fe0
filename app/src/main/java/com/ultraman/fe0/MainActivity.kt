@@ -3,6 +3,7 @@ package com.ultraman.fe0
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
@@ -25,10 +26,27 @@ class MainActivity : AppCompatActivity() {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: Exception) {}
         gameUri = uri
-        val name = uri.lastPathSegment?.substringAfterLast('/') ?: "game.iso"
+        val name = getFileName(uri)
         tvGameName.text = name
         btnLaunch.isEnabled = true
         cfg.lastGamePath = uri.toString()
+        cfg.lastGameName = name
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = ""
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && c.moveToFirst()) {
+                    name = c.getString(idx) ?: ""
+                }
+            }
+        } catch (_: Exception) {}
+        if (name.isEmpty()) {
+            name = uri.lastPathSegment?.let { Uri.decode(it) } ?: "game.iso"
+        }
+        return name
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,9 +72,9 @@ class MainActivity : AppCompatActivity() {
         btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
 
         cfg.lastGamePath?.let {
-            tvGameName.text = it.substringAfterLast('/')
-            btnLaunch.isEnabled = true
             gameUri = Uri.parse(it)
+            tvGameName.text = cfg.lastGameName ?: it.substringAfterLast('/')
+            btnLaunch.isEnabled = true
         }
     }
 }
