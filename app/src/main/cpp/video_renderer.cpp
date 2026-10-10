@@ -268,6 +268,13 @@ void ultraman_video_set_hw(bool hw, int w, int h) {
 }
 
 void ultraman_video_present() {
+    static std::atomic<int> s_call{0};
+    int c = s_call.fetch_add(1) + 1;
+    if (c <= 3) {
+        LOGI("present call #%d vready=%d hwmode=%d hwready=%d fbo=%u surf=%d",
+             c, g_video_ready.load()?1:0, g_hw_mode.load()?1:0,
+             g_hw_ready.load()?1:0, g_hw_fbo, g_surface_ok.load()?1:0);
+    }
     if (!g_video_ready.load() || !g_hw_mode.load()) return;
     if (!g_hw_ready.load() || !g_hw_fbo) return;
     if (!g_surface_ok.load() || !g_win) return;
@@ -481,4 +488,22 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
 
 bool ultraman_video_is_ready() {
     return g_video_ready.load();
+}
+
+
+void ultraman_video_set_hw_size(int w, int h) {
+    if (w <= 0 || h <= 0) return;
+    if (g_hw_w == w && g_hw_h == h) return;
+    LOGI("set_hw_size %dx%d (was %dx%d)", w, h, g_hw_w, g_hw_h);
+    g_hw_w = w;
+    g_hw_h = h;
+    if (g_hw_fbo && g_hw_ready.load()) {
+        LOGI("hw_size changed: destroying old FBO for recreation");
+        eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
+        hw_destroy_fbo();
+        g_hw_ready.store(false);
+        hw_create_fbo(w, h);
+        g_hw_ready.store(true);
+        gl_state_reset();
+    }
 }

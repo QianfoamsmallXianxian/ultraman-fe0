@@ -105,8 +105,34 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
         case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
-        case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
-        case RETRO_ENVIRONMENT_SET_GEOMETRY:
+        case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
+            struct retro_system_av_info *info = (struct retro_system_av_info *)data;
+            int w = (int)info->geometry.base_width;
+            int h = (int)info->geometry.base_height;
+            LOGI("SET_SYSTEM_AV_INFO base=%dx%d fps=%.2f", w, h, info->timing.fps);
+            if (w > 0 && h > 0) {
+                int mult = s_render_w / 480;
+                if (mult < 1) mult = 1;
+                if (mult > 8) mult = 8;
+                int scaled_w = w * mult;
+                int scaled_h = h * mult;
+                LOGI("av_info scale=%d -> %dx%d", mult, scaled_w, scaled_h);
+                s_render_w = scaled_w;
+                s_render_h = scaled_h;
+                extern void ultraman_video_set_hw_size(int, int);
+                ultraman_video_set_hw_size(scaled_w, scaled_h);
+            }
+            return true;
+        }
+        case RETRO_ENVIRONMENT_SET_GEOMETRY: {
+            struct retro_game_geometry *g = (struct retro_game_geometry *)data;
+            if (g && g->base_width > 0 && g->base_height > 0) {
+                LOGI("SET_GEOMETRY %ux%u", g->base_width, g->base_height);
+                extern void ultraman_video_set_hw_size(int, int);
+                ultraman_video_set_hw_size(g->base_width, g->base_height);
+            }
+            return true;
+        }
         case RETRO_ENVIRONMENT_SET_ROTATION:
             return true;
         case RETRO_ENVIRONMENT_SET_VARIABLES:
