@@ -7,6 +7,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,14 +26,12 @@ class PlayActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        if (cfg.fullscreen) applyFullscreen()
-
         val root = FrameLayout(this)
         view = EmulatorView(this)
         root.addView(view, FrameLayout.LayoutParams(-1, -1))
         val overlay = OverlayView(this)
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
-        val menuBtn = android.widget.Button(this).apply {
+        val menuBtn = Button(this).apply {
             text = "菜单"
             alpha = 0.6f
             textSize = 12f
@@ -45,6 +44,10 @@ class PlayActivity : AppCompatActivity() {
         lp.topMargin = 30
         root.addView(menuBtn, lp)
         setContentView(root)
+
+        if (cfg.fullscreen) {
+            window.decorView.post { applyFullscreen() }
+        }
 
         gamePath = intent.dataString
         if (gamePath.isNullOrEmpty()) { finish(); return }
@@ -63,13 +66,36 @@ class PlayActivity : AppCompatActivity() {
         loaded = EmulatorBridge.nativeLoadGame(gamePath!!)
         if (!loaded) { finish(); return }
 
-        // 游戏启动时自动加载 SRAM（游戏内存档）
         val sramFile = File(savesDir, "${gameKey}.sram")
         if (sramFile.exists()) {
             EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
         }
 
         EmulatorBridge.nativeStart()
+    }
+
+    private fun applyFullscreen() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(false)
+                window.insetsController?.let {
+                    it.hide(WindowInsets.Type.systemBars())
+                    it.systemBarsBehavior =
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+            }
+        } catch (_: Throwable) {
+        }
     }
 
     private fun showMenu() {
@@ -96,12 +122,10 @@ class PlayActivity : AppCompatActivity() {
     }
 
     private fun stateFile(): File = File(savesDir, "${gameKey}.state")
-
     private fun sramFile(): File = File(savesDir, "${gameKey}.sram")
 
     private fun saveState() {
-        val f = stateFile()
-        val ok = EmulatorBridge.nativeSaveState(f.absolutePath)
+        val ok = EmulatorBridge.nativeSaveState(stateFile().absolutePath)
         toast(if (ok) "即时存档已保存" else "保存失败")
     }
 
@@ -113,8 +137,7 @@ class PlayActivity : AppCompatActivity() {
     }
 
     private fun saveSram() {
-        val f = sramFile()
-        val ok = EmulatorBridge.nativeSaveSram(f.absolutePath)
+        val ok = EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
         toast(if (ok) "游戏内存档已保存" else "保存失败")
     }
 
@@ -129,31 +152,9 @@ class PlayActivity : AppCompatActivity() {
         Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
     }
 
-    private fun applyFullscreen() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
-            window.insetsController?.let {
-                it.hide(WindowInsets.Type.systemBars())
-                it.systemBarsBehavior =
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or View.SYSTEM_UI_FLAG_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            )
-        }
-    }
-
     override fun onPause() {
         super.onPause()
         if (loaded) {
-            // 退出前自动保存 SRAM
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             EmulatorBridge.nativeStop()
         }
