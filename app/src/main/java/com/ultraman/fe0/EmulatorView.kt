@@ -1,9 +1,11 @@
 package com.ultraman.fe0
+
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -36,11 +38,24 @@ class EmulatorView @JvmOverloads constructor(
         holder.addCallback(this)
         paint.textAlign = Paint.Align.CENTER
         isFocusable = true
+        setZOrderOnTop(true)
+        holder.setFormat(android.graphics.PixelFormat.RGBA_8888)
     }
 
-    override fun surfaceCreated(h: SurfaceHolder) { EmulatorBridge.nativeSetSurface(h.surface) }
-    override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, ht: Int) { EmulatorBridge.nativeSetSurface(h.surface) }
-    override fun surfaceDestroyed(h: SurfaceHolder) { EmulatorBridge.nativeSetSurface(null) }
+    override fun surfaceCreated(h: SurfaceHolder) {
+        Log.i("UltramanFE0", "surfaceCreated")
+        EmulatorBridge.nativeSetSurface(h.surface)
+    }
+
+    override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, ht: Int) {
+        Log.i("UltramanFE0", "surfaceChanged: ${w}x${ht}")
+        EmulatorBridge.nativeSetSurface(h.surface)
+    }
+
+    override fun surfaceDestroyed(h: SurfaceHolder) {
+        Log.i("UltramanFE0", "surfaceDestroyed")
+        EmulatorBridge.nativeSetSurface(null)
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
