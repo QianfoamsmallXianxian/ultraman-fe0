@@ -44,7 +44,6 @@ static bool g_first_hw_logged = false;
 static bool g_first_sw_logged = false;
 
 static void* g_gles_lib = nullptr;
-static PFNEGLGETPROCADDRESSPROC g_egl_get_proc = nullptr;
 
 static const char* SW_VS =
     "#version 300 es\n"
@@ -201,12 +200,13 @@ static uintptr_t hw_get_current_fbo() {
 
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
-    void* p = nullptr;
-    if (g_egl_get_proc) p = (void*)g_egl_get_proc(sym);
-    if (!p && !g_gles_lib) {
-        g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
+    void* p = (void*)eglGetProcAddress(sym);
+    if (!p) {
+        if (!g_gles_lib) {
+            g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
+        }
+        if (g_gles_lib) p = dlsym(g_gles_lib, sym);
     }
-    if (!p && g_gles_lib) p = dlsym(g_gles_lib, sym);
     if (!p) {
         static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
@@ -329,7 +329,6 @@ void ultraman_video_start() {
     if (!eglInitialize(g_dpy, nullptr, nullptr)) { LOGE("eglInitialize fail"); return; }
     eglBindAPI(EGL_OPENGL_ES_API);
 
-    g_egl_get_proc = &eglGetProcAddress;
 
     EGLint attribs[] = {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
@@ -401,7 +400,6 @@ void ultraman_video_stop() {
     g_ctx = EGL_NO_CONTEXT;
     g_sfc = EGL_NO_SURFACE;
     g_cfg = nullptr;
-    g_egl_get_proc = nullptr;
 }
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
