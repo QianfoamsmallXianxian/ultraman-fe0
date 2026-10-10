@@ -199,27 +199,29 @@ static bool hw_create_fbo(int w, int h) {
 
 static void hw_context_reset() {
     GLLOCK;
-    LOGI("context_reset called");
+    LOGI(">>> context_reset ENTER");
     if (g_dpy == EGL_NO_DISPLAY || g_ctx == EGL_NO_CONTEXT || g_sfc == EGL_NO_SURFACE) {
         LOGE("context_reset: EGL not ready");
         return;
     }
-    if (!ensure_current()) {
-        LOGE("context_reset: ensure_current fail");
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+        LOGE("context_reset: eglMakeCurrent fail 0x%x", eglGetError());
         return;
     }
+    g_current_sfc = g_sfc;
     g_hw_ready.store(false);
-    if (g_hw_fbo) hw_destroy_fbo();
-
-    int w = g_hw_w > 0 ? g_hw_w : 960;
-    int h = g_hw_h > 0 ? g_hw_h : 544;
-    if (!hw_create_fbo(w, h)) {
+    if (g_hw_fbo) {
+        LOGI("context_reset: destroying existing FBO %u", g_hw_fbo);
+        hw_destroy_fbo();
+    }
+    if (!hw_create_fbo(g_hw_w, g_hw_h)) {
+        LOGE("context_reset: create FBO failed");
         gl_state_reset();
         return;
     }
     g_hw_ready.store(true);
     gl_state_reset();
-    LOGI("context_reset done fbo=%u", g_hw_fbo);
+    LOGI(">>> context_reset EXIT fbo=%u %dx%d", g_hw_fbo, g_hw_w, g_hw_h);
 }
 
 static void hw_context_destroy() {
@@ -233,18 +235,21 @@ static uintptr_t hw_get_current_fbo() {
     return (uintptr_t)g_hw_fbo;
 }
 
+static std::atomic<int> s_proc_count{0};
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
+    int n = s_proc_count.fetch_add(1) + 1;
     void* p = (void*)eglGetProcAddress(sym);
     if (!p) {
-        if (!g_gles_lib) {
-            g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
-        }
+        if (!g_gles_lib) g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
         if (g_gles_lib) p = dlsym(g_gles_lib, sym);
     }
     if (!p) {
         static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
+    }
+    if (n <= 15 || n % 50 == 0) {
+        LOGI("proc[%d] %s -> %p", n, sym, p);
     }
     return (retro_proc_address_t)p;
 }
@@ -489,24 +494,28 @@ void ultraman_video_stop() {
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     bool need_start = false;
-    bool need_restart = false;
     {
         GLLOCK;
+        ANativeWindow* new_win = nullptr;
+        if (s) new_win = ANativeWindow_fromSurface(env, s);
+
+        if (new_win == g_win && g_win != nullptr) {
+            LOGI("surface %p unchanged, skip release/acquire", g_win);
+            if (s && !g_video_ready.load()) need_start = true;
+            if (s == nullptr) g_surface_ok.store(false);
+            return;
+        }
+
         if (g_win) {
             ANativeWindow_release(g_win);
             g_win = nullptr;
         }
         if (s) {
-            g_win = ANativeWindow_fromSurface(env, s);
+            g_win = new_win;
             LOGI("surface %p %dx%d", g_win,
                  g_win ? ANativeWindow_getWidth(g_win) : 0,
                  g_win ? ANativeWindow_getHeight(g_win) : 0);
-            if (g_win && !g_video_ready.load()) {
-                need_start = true;
-            } else if (g_win && g_video_ready.load() && !g_surface_ok.load()) {
-                need_restart = true;
-                g_surface_ok.store(true);
-            }
+            if (g_win && !g_video_ready.load()) need_start = true;
         } else {
             LOGI("surface null");
             g_surface_ok.store(false);
@@ -515,8 +524,6 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
     if (need_start) {
         LOGI("surface arrived: start EGL");
         ultraman_video_start();
-    } else if (need_restart) {
-        LOGI("surface returned: resume rendering");
     }
 }
 

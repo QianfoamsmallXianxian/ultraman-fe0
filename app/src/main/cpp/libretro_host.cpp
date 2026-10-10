@@ -232,7 +232,7 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
         case RETRO_ENVIRONMENT_SHUTDOWN:
-            LOGW("core requested SHUTDOWN");
+            LOGW(">>> core requested SHUTDOWN <<<");
             return true;
         case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
             *(unsigned *)data = 1;
