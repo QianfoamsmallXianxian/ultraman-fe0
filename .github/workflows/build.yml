@@ -1,6 +1,7 @@
 name: Build APK
 on:
-  push: { branches: [ main, master ] }
+  push:
+    branches: [ main, master ]
   workflow_dispatch:
 jobs:
   build:
@@ -13,7 +14,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
-      - name: NDK
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: true
+      - name: InstallNDK
         run: |
           sdkmanager --install "ndk;25.2.9519653"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
@@ -29,8 +34,7 @@ jobs:
       - name: Clone
         if: steps.c.outputs.p == 'false'
         run: |
-          git clone --depth 1 --recurse-submodules --shallow-submodules \
-            https://github.com/libretro/ppsspp.git libretro-ppsspp
+          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/libretro/ppsspp.git libretro-ppsspp
       - name: BuildCore
         if: steps.c.outputs.p == 'false'
         run: bash scripts/build_core.sh
