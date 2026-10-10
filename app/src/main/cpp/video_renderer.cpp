@@ -13,6 +13,7 @@
 #include "libretro.h"
 
 extern void ultraman_on_video_ready();
+#define GLLOCK std::lock_guard<std::recursive_mutex> _lk(g_gl_mtx)
 
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
@@ -23,7 +24,10 @@ static EGLDisplay     g_dpy = EGL_NO_DISPLAY;
 static EGLSurface     g_sfc = EGL_NO_SURFACE;
 static EGLContext     g_ctx = EGL_NO_CONTEXT;
 static EGLConfig      g_cfg = nullptr;
-static std::mutex     g_lifecycle_mtx;
+static std::recursive_mutex g_gl_mtx;
+static std::atomic<bool> g_pending_rebuild{false};
+static int g_pending_w = 0;
+static int g_pending_h = 0;
 static std::atomic<bool> g_video_ready{false};
 static std::atomic<bool> g_hw_mode{false};
 static std::atomic<bool> g_hw_ready{false};
@@ -120,6 +124,7 @@ static void sw_setup() {
 }
 
 static bool ensure_current() {
+    GLLOCK;
     if (g_current_sfc == g_sfc && eglGetCurrentContext() == g_ctx) {
         return true;
     }
@@ -194,6 +199,7 @@ static bool hw_create_fbo(int w, int h) {
 }
 
 static void hw_context_reset() {
+    GLLOCK;
     LOGI("context_reset called");
     if (g_dpy == EGL_NO_DISPLAY || g_ctx == EGL_NO_CONTEXT || g_sfc == EGL_NO_SURFACE) {
         LOGE("context_reset: EGL not ready");
@@ -218,6 +224,7 @@ static void hw_context_reset() {
 }
 
 static void hw_context_destroy() {
+    GLLOCK;
     LOGI("context_destroy");
     if (g_hw_fbo) hw_destroy_fbo();
     g_hw_ready.store(false);
@@ -276,10 +283,26 @@ void ultraman_video_present() {
              g_hw_ready.load()?1:0, g_hw_fbo, g_surface_ok.load()?1:0);
     }
     if (!g_video_ready.load() || !g_hw_mode.load()) return;
-    if (!g_hw_ready.load() || !g_hw_fbo) return;
     if (!g_surface_ok.load() || !g_win) return;
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return;
 
+    GLLOCK;
+
+    if (g_pending_rebuild.exchange(false)) {
+        if (g_pending_w > 0 && g_pending_h > 0 && g_dpy != EGL_NO_DISPLAY) {
+            LOGI("rebuild FBO %dx%d", g_pending_w, g_pending_h);
+            if (ensure_current()) {
+                g_hw_w = g_pending_w;
+                g_hw_h = g_pending_h;
+                hw_destroy_fbo();
+                g_hw_ready.store(false);
+                if (hw_create_fbo(g_hw_w, g_hw_h)) g_hw_ready.store(true);
+                gl_state_reset();
+            }
+        }
+    }
+
+    if (!g_hw_ready.load() || !g_hw_fbo) return;
     if (!ensure_current()) return;
 
     int winW = ANativeWindow_getWidth(g_win);
@@ -335,6 +358,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     if (!data || !g_win) return;
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE) return;
 
+    GLLOCK;
     if (!ensure_current()) return;
 
     int winW = ANativeWindow_getWidth(g_win);
@@ -377,7 +401,7 @@ void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
 }
 
 void ultraman_video_start() {
-    std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
+    GLLOCK;
     if (g_video_ready.load()) return;
     if (!g_win) { LOGE("video_start: no window"); return; }
     LOGI("video_start hw=%d", g_hw_mode.load() ? 1 : 0);
@@ -440,7 +464,7 @@ void ultraman_video_start() {
 }
 
 void ultraman_video_stop() {
-    std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
+    GLLOCK;
     g_surface_ok.store(false);
     g_video_ready.store(false);
     g_hw_ready.store(false);
@@ -466,23 +490,34 @@ void ultraman_video_stop() {
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     bool need_start = false;
+    bool need_restart = false;
     {
-        std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
-        if (g_win) { ANativeWindow_release(g_win); g_win = nullptr; }
+        GLLOCK;
+        if (g_win) {
+            ANativeWindow_release(g_win);
+            g_win = nullptr;
+        }
         if (s) {
             g_win = ANativeWindow_fromSurface(env, s);
             LOGI("surface %p %dx%d", g_win,
                  g_win ? ANativeWindow_getWidth(g_win) : 0,
                  g_win ? ANativeWindow_getHeight(g_win) : 0);
-            if (g_win && !g_video_ready.load()) need_start = true;
+            if (g_win && !g_video_ready.load()) {
+                need_start = true;
+            } else if (g_win && g_video_ready.load() && !g_surface_ok.load()) {
+                need_restart = true;
+                g_surface_ok.store(true);
+            }
         } else {
             LOGI("surface null");
             g_surface_ok.store(false);
         }
     }
     if (need_start) {
-        LOGI("surface arrived: auto-start EGL");
+        LOGI("surface arrived: start EGL");
         ultraman_video_start();
+    } else if (need_restart) {
+        LOGI("surface returned: resume rendering");
     }
 }
 
@@ -494,16 +529,8 @@ bool ultraman_video_is_ready() {
 void ultraman_video_set_hw_size(int w, int h) {
     if (w <= 0 || h <= 0) return;
     if (g_hw_w == w && g_hw_h == h) return;
-    LOGI("set_hw_size %dx%d (was %dx%d)", w, h, g_hw_w, g_hw_h);
-    g_hw_w = w;
-    g_hw_h = h;
-    if (g_hw_fbo && g_hw_ready.load()) {
-        LOGI("hw_size changed: destroying old FBO for recreation");
-        eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
-        hw_destroy_fbo();
-        g_hw_ready.store(false);
-        hw_create_fbo(w, h);
-        g_hw_ready.store(true);
-        gl_state_reset();
-    }
+    LOGI("set_hw_size request %dx%d (current %dx%d)", w, h, g_hw_w, g_hw_h);
+    g_pending_w = w;
+    g_pending_h = h;
+    g_pending_rebuild.store(true);
 }

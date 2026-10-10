@@ -114,13 +114,13 @@ static bool env_cb(unsigned cmd, void *data) {
                 int mult = s_render_w / 480;
                 if (mult < 1) mult = 1;
                 if (mult > 8) mult = 8;
-                int scaled_w = w * mult;
-                int scaled_h = h * mult;
-                LOGI("av_info scale=%d -> %dx%d", mult, scaled_w, scaled_h);
-                s_render_w = scaled_w;
-                s_render_h = scaled_h;
+                int sw = w * mult;
+                int sh = h * mult;
+                LOGI("av_info deferred %dx%d scale=%d", sw, sh, mult);
+                s_render_w = sw;
+                s_render_h = sh;
                 extern void ultraman_video_set_hw_size(int, int);
-                ultraman_video_set_hw_size(scaled_w, scaled_h);
+                ultraman_video_set_hw_size(sw, sh);
             }
             return true;
         }
@@ -298,13 +298,21 @@ void ultraman_start_loop() {
 
 void ultraman_stop_loop() {
     if (!s_run.exchange(false)) return;
-    LOGI("stop loop");
+    LOGI("stop loop: joining thread");
     if (s_thread.joinable()) s_thread.join();
+    LOGI("stop loop: thread joined");
+
     if (s_loaded.exchange(false)) {
+        LOGI("stop loop: unload game");
         retro_unload_game();
+        LOGI("stop loop: deinit core");
         retro_deinit();
-        LOGI("core deinit done");
     }
+
+    extern void ultraman_video_stop();
+    LOGI("stop loop: stop video");
+    ultraman_video_stop();
+    LOGI("stop loop: done");
 }
 
 bool ultraman_save_state(const char *path) {
