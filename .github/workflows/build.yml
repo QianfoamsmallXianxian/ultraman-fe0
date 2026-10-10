@@ -38,14 +38,30 @@ jobs:
       - name: BuildCore
         if: steps.c.outputs.p == 'false'
         run: bash scripts/build_core.sh
+      - name: VerifyCore
+        run: |
+          SO="app/src/main/jniLibs/arm64-v8a/libppsspp_libretro_android.so"
+          [ -f "$SO" ] || exit 1
+          ls -lh "$SO"
       - name: SetupGradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.2
+      - name: GrantGradlew
+        run: |
+          [ -f gradlew ] && chmod +x gradlew || true
       - name: BuildAPK
         run: gradle assembleDebug --no-daemon --stacktrace
+      - name: LocateAPK
+        id: apk
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" -type f | head -1)
+          [ -n "$APK" ] || exit 1
+          echo "path=$APK" >> $GITHUB_OUTPUT
+          echo "name=$(basename $APK)" >> $GITHUB_OUTPUT
+          echo "size=$(du -h $APK | cut -f1)" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
           name: UltramanFE0-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error

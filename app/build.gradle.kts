@@ -5,6 +5,7 @@ plugins {
 android {
     namespace = "com.ultraman.fe0"
     compileSdk = 34
+    ndkVersion = "25.2.9519653"
     defaultConfig {
         applicationId = "com.ultraman.fe0"
         minSdk = 24

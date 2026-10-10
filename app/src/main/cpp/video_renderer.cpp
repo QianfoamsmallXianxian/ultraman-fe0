@@ -13,8 +13,10 @@ static EGLSurface g_sfc = EGL_NO_SURFACE;
 static EGLContext g_ctx = EGL_NO_CONTEXT;
 static std::mutex g_mtx;
 static GLuint g_tex = 0;
-static int g_prog = 0;
-static int g_vbo = 0;
+static GLuint g_prog = 0;
+static GLuint g_vbo = 0;
+static GLint g_a_pos = -1;
+static GLint g_a_uv = -1;
 static const char *VS =
     "#version 300 es\n"
     "layout(location=0) in vec2 a_pos;\n"
@@ -43,9 +45,14 @@ static void setup() {
     glLinkProgram(p);
     glUseProgram(p);
     g_prog = p;
-    int a_pos = glGetAttribLocation(p, "a_pos");
-    int a_uv = glGetAttribLocation(p, "a_uv");
-    float vts[] = { -1,-1,0,1, 1,-1,1,1, -1,1,0,0, 1,1,1,0 };
+    g_a_pos = glGetAttribLocation(p, "a_pos");
+    g_a_uv = glGetAttribLocation(p, "a_uv");
+    float vts[] = {
+        -1.f, -1.f, 0.f, 1.f,
+         1.f, -1.f, 1.f, 1.f,
+        -1.f,  1.f, 0.f, 0.f,
+         1.f,  1.f, 1.f, 0.f
+    };
     glGenBuffers(1, &g_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vts), vts, GL_STATIC_DRAW);
@@ -55,8 +62,6 @@ static void setup() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glEnableVertexAttribArray(a_pos);
-    glEnableVertexAttribArray(a_uv);
 }
 void ultraman_video_set_geometry(unsigned, unsigned, double) {}
 void ultraman_video_cb(const void *data, unsigned w, unsigned h, size_t) {
@@ -68,14 +73,14 @@ void ultraman_video_cb(const void *data, unsigned w, unsigned h, size_t) {
     glBindTexture(GL_TEXTURE_2D, g_tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glViewport(0, 0, ANativeWindow_getWidth(g_win), ANativeWindow_getHeight(g_win));
-    glClearColor(0, 0, 0, 1);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_prog);
     glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
-    int a_pos = glGetAttribLocation(g_prog, "a_pos");
-    int a_uv = glGetAttribLocation(g_prog, "a_uv");
-    glVertexAttribPointer(a_pos, 2, GL_FLOAT, GL_FALSE, 16, (void *)0);
-    glVertexAttribPointer(a_uv, 2, GL_FLOAT, GL_FALSE, 16, (void *)8);
+    glEnableVertexAttribArray((GLuint)g_a_pos);
+    glVertexAttribPointer((GLuint)g_a_pos, 2, GL_FLOAT, GL_FALSE, 16, (void *)0);
+    glEnableVertexAttribArray((GLuint)g_a_uv);
+    glVertexAttribPointer((GLuint)g_a_uv, 2, GL_FLOAT, GL_FALSE, 16, (void *)8);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     eglSwapBuffers(g_dpy, g_sfc);
 }
