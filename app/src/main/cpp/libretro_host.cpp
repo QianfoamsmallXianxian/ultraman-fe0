@@ -159,46 +159,47 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             LOGI("SET_HW_RENDER type=%d", cb->context_type);
+
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
                 LOGW("Vulkan refused");
                 return false;
             }
-            if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
-                cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES2 ||
-                cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
-                cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
-                struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-                int requested = cb->context_type;
-                cb->context_reset           = ours->context_reset;
-                cb->context_destroy         = ours->context_destroy;
-                cb->get_current_framebuffer = ours->get_current_framebuffer;
-                cb->get_proc_address        = ours->get_proc_address;
-                cb->depth                   = ours->depth;
-                cb->stencil                 = ours->stencil;
-                cb->bottom_left_origin      = ours->bottom_left_origin;
-                cb->version_major           = (requested == RETRO_HW_CONTEXT_OPENGL_ES2) ? 2 : 3;
-                cb->version_minor           = 0;
-                cb->cache_context           = ours->cache_context;
-                cb->debug_context           = ours->debug_context;
-                s_hw_render = true;
-                LOGI("HW accepted type=%d ver=%u.%u", requested,
-                     cb->version_major, cb->version_minor);
 
-                if (ultraman_video_is_ready()) {
-                    LOGI("EGL ready: creating FBO before core checks");
-                    if (!ultraman_video_create_fbo_now()) {
-                        LOGE("create_fbo_now failed, core will refuse hw render");
-                        s_hw_render = false;
-                        return false;
-                    }
-                    LOGI("FBO %u ready for core", 0);
-                } else {
-                    s_deferred_reset_cb = cb->context_reset;
-                    LOGW("EGL not ready: defer");
-                }
-                return true;
+            int requested = cb->context_type;
+            if (requested != RETRO_HW_CONTEXT_OPENGL_ES3 &&
+                requested != RETRO_HW_CONTEXT_OPENGL_ES2 &&
+                requested != RETRO_HW_CONTEXT_OPENGL_CORE &&
+                requested != RETRO_HW_CONTEXT_OPENGL) {
+                LOGE("HW type %d unsupported", requested);
+                return false;
             }
-            return false;
+
+            struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
+
+            cb->context_type           = RETRO_HW_CONTEXT_OPENGL_ES3;
+            cb->context_reset          = ours->context_reset;
+            cb->context_destroy        = ours->context_destroy;
+            cb->get_current_framebuffer= ours->get_current_framebuffer;
+            cb->get_proc_address       = ours->get_proc_address;
+            cb->depth                  = true;
+            cb->stencil                = true;
+            cb->bottom_left_origin     = false;
+            cb->version_major          = 3;
+            cb->version_minor          = 0;
+            cb->cache_context          = false;
+            cb->debug_context          = false;
+
+            s_hw_render = true;
+            LOGI("HW accepted: reported ES3 ver=3.0 (requested was %d)", requested);
+
+            if (ultraman_video_is_ready()) {
+                if (!ultraman_video_create_fbo_now()) {
+                    LOGE("create_fbo_now failed");
+                    s_hw_render = false;
+                    return false;
+                }
+            }
+            return true;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
             return false;
