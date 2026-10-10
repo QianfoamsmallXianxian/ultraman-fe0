@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
 
         val ok = EmulatorBridge.ensureLoaded()
         Log.i("UltramanFE0", "lib loaded: $ok")
-        tvCore.text = if (ok) "core: ppsspp" else "core: not loaded"
+        tvCore.text = if (ok) "内核: ppsspp" else "内核: 加载失败"
 
         btnPick.setOnClickListener { filePicker.launch(arrayOf("*/*")) }
 
