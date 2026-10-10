@@ -232,7 +232,8 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
         case RETRO_ENVIRONMENT_SHUTDOWN:
-            LOGW(">>> core requested SHUTDOWN <<<");
+            LOGW(">>> core requested SHUTDOWN, stopping loop <<<");
+            s_run.store(false);
             return true;
         case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
             *(unsigned *)data = 1;
@@ -309,11 +310,16 @@ void ultraman_start_loop() {
             ultraman_video_make_current();
         }
         while (s_run.load()) {
+            if (!s_run.load()) break;
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
             if (s_hw_render) ultraman_video_present();
             if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
                 LOGI("frame %d", f);
+            }
+            if (!s_run.load()) {
+                LOGI("loop: stop flag set, exiting");
+                break;
             }
         }
         LOGI("loop thread ended");
