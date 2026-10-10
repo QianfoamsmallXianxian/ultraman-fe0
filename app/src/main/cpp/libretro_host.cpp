@@ -228,11 +228,13 @@ void ultraman_start_loop() {
     if (s_run.exchange(true)) return;
     LOGI("start loop");
     s_thread = std::thread([]{
+        LOGI("loop thread started");
         while (s_run.load()) {
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
             if (f == 1 || f == 10 || f == 60 || f == 300) LOGI("frame %d", f);
         }
+        LOGI("loop thread ended");
     });
 }
 void ultraman_stop_loop() {

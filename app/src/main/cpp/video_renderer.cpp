@@ -8,6 +8,7 @@
 #include <GLES2/gl2ext.h>
 #include <dlfcn.h>
 #include <mutex>
+#include <atomic>
 #include <cstring>
 #include "ulog.h"
 #include "libretro.h"
@@ -249,7 +250,13 @@ void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
     if (h > 0) g_hw_h = (int)h;
 }
 
+static std::atomic<int> g_cb_count{0};
 void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
+    int cn = g_cb_count.fetch_add(1) + 1;
+    if (cn == 1 || cn == 10 || cn == 60) {
+        LOGI("CB_ENTER #%d hw=%d ready=%d fbo=%u data=%p %ux%u",
+             cn, g_hw_mode, g_hw_ready, g_hw_fbo, data, w, h);
+    }
     std::lock_guard<std::mutex> lk(g_mtx);
     if (!g_video_ready || g_dpy == EGL_NO_DISPLAY || !g_win) return;
 
