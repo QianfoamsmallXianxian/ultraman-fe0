@@ -24,13 +24,37 @@ static std::thread s_thread;
 static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
 static std::map<std::string, std::string> s_vars;
+static const char *resolution_for(int mult) {
+    switch (mult) {
+        case 1: return "480x272";
+        case 2: return "960x544";
+        case 3: return "1440x816";
+        case 4: return "1920x1088";
+        case 5: return "2400x1360";
+        default: return "960x544";
+    }
+}
 void ultraman_set_options(int r, bool v, bool a) {
-    (void)r; (void)v; (void)a;
+    s_vars["ppsspp_internal_resolution"] = resolution_for(r);
+    s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
+    s_vars["ppsspp_audio_latency"] = a ? "low" : "high";
+    s_vars["ppsspp_backend"] = "Auto";
+    s_vars["ppsspp_software_rendering"] = "disabled";
+    s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
+    s_vars["ppsspp_skip_buffer_effects"] = "disabled";
+    s_vars["ppsspp_frame_duplication"] = "disabled";
+    s_vars["ppsspp_rendering_mode"] = "buffered";
+    s_vars["ppsspp_language"] = "Simplified Chinese";
+    s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
+    LOGI("set_options: res=%d(%s) vsync=%d audio=%d", r, resolution_for(r), v, a);
 }
 static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
-    if (it != s_vars.end()) return it->second.c_str();
+    if (it != s_vars.end()) {
+        LOGI("GET_VARIABLE %s -> %s", key, it->second.c_str());
+        return it->second.c_str();
+    }
     return nullptr;
 }
 static bool env_cb(unsigned cmd, void *data) {
@@ -46,22 +70,15 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:
             *(const char **)data = s_system_dir.c_str();
             return true;
-        case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL: return true;
-        case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: return true;
-        case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS: return true;
+        case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
+        case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
+        case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
+            return true;
         case RETRO_ENVIRONMENT_SET_VARIABLES: {
             LOGI("===== CORE VARIABLES START =====");
             const struct retro_variable *vars = (const struct retro_variable *)data;
             while (vars && vars->key) {
                 LOGI("VAR: %s = %s", vars->key, vars->value ? vars->value : "(null)");
-                const char *def = vars->value;
-                if (def && *def) {
-                    const char *semi = strchr(def, ';');
-                    if (semi) {
-                        while (*semi == ';' || *semi == ' ') semi++;
-                        s_vars[vars->key] = semi;
-                    }
-                }
                 vars++;
             }
             LOGI("===== CORE VARIABLES END =====");
@@ -70,16 +87,18 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_VARIABLE: {
             struct retro_variable *v = (struct retro_variable *)data;
             const char *val = lookup_var(v->key);
-            if (val) {
-                v->value = val;
-                return true;
-            }
+            if (val) { v->value = val; return true; }
+            LOGI("GET_VARIABLE %s -> (not set)", v->key);
             return false;
         }
         case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
             *(bool *)data = false;
             return true;
-        case RETRO_ENVIRONMENT_SET_MESSAGE: return true;
+        case RETRO_ENVIRONMENT_SET_HW_RENDER:
+            LOGI("env: SET_HW_RENDER requested");
+            return false;
+        case RETRO_ENVIRONMENT_SET_MESSAGE:
+            return true;
         case RETRO_ENVIRONMENT_GET_LANGUAGE: *(unsigned *)data = 0; return true;
         case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: *(bool *)data = true; return true;
         case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS: *(unsigned *)data = 1; return true;
@@ -92,7 +111,9 @@ static bool env_cb(unsigned cmd, void *data) {
 static void on_a(int16_t l, int16_t r) { ultraman_audio_sample_cb(l, r); }
 static size_t on_ab(const int16_t *d, size_t f) { return ultraman_audio_batch_cb(d, f); }
 static void on_ip() { ultraman_poll_input_cb(); }
-static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) { return ultraman_input_state_cb(p, d, i, id); }
+static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
+    return ultraman_input_state_cb(p, d, i, id);
+}
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
     s_system_dir = "/data/data/com.ultraman.fe0/files/system";
