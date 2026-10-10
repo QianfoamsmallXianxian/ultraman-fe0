@@ -403,14 +403,22 @@ void ultraman_video_stop() {
 }
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
-    std::lock_guard<std::mutex> lk(g_mtx);
-    if (g_win) { ANativeWindow_release(g_win); g_win = nullptr; }
-    if (s) {
-        g_win = ANativeWindow_fromSurface(env, s);
-        LOGI("surface %p %dx%d", g_win,
-             g_win ? ANativeWindow_getWidth(g_win) : 0,
-             g_win ? ANativeWindow_getHeight(g_win) : 0);
-    } else {
-        LOGI("surface null");
+    bool need_start = false;
+    {
+        std::lock_guard<std::mutex> lk(g_mtx);
+        if (g_win) { ANativeWindow_release(g_win); g_win = nullptr; }
+        if (s) {
+            g_win = ANativeWindow_fromSurface(env, s);
+            LOGI("surface %p %dx%d", g_win,
+                 g_win ? ANativeWindow_getWidth(g_win) : 0,
+                 g_win ? ANativeWindow_getHeight(g_win) : 0);
+            if (g_win && !g_video_ready) need_start = true;
+        } else {
+            LOGI("surface null");
+        }
+    }
+    if (need_start) {
+        LOGI("surface ready after video_start missed, starting EGL now");
+        ultraman_video_start();
     }
 }

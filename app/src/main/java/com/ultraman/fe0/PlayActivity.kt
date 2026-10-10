@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
 class PlayActivity : AppCompatActivity() {
+
     private lateinit var view: EmulatorView
     private val cfg by lazy { ConfigManager(this) }
     private var gamePath: String? = null
@@ -57,13 +58,20 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
-        loaded = EmulatorBridge.nativeLoadGame(gamePath!!)
-        if (!loaded) { finish(); return }
-
-        val sramFile = File(savesDir, "${gameKey}.sram")
-        if (sramFile.exists()) EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
-
-        EmulatorBridge.nativeStart()
+        view.onSurfaceReady = {
+            if (!loaded) {
+                loaded = EmulatorBridge.nativeLoadGame(gamePath!!)
+                if (!loaded) {
+                    runOnUiThread { finish() }
+                } else {
+                    val sramFile = File(savesDir, "${gameKey}.sram")
+                    if (sramFile.exists()) {
+                        EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
+                    }
+                    EmulatorBridge.nativeStart()
+                }
+            }
+        }
     }
 
     private fun applyFullscreen() {
@@ -72,7 +80,8 @@ class PlayActivity : AppCompatActivity() {
                 window.setDecorFitsSystemWindows(false)
                 window.insetsController?.let {
                     it.hide(WindowInsets.Type.systemBars())
-                    it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    it.systemBarsBehavior =
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 }
             } else {
                 @Suppress("DEPRECATION")
@@ -109,8 +118,20 @@ class PlayActivity : AppCompatActivity() {
     private fun loadSram() { val f = sramFile(); if (!f.exists()) { toast("无内存档"); return }; toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败") }
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
-    override fun onPause() { super.onPause(); if (loaded) { EmulatorBridge.nativeSaveSram(sramFile().absolutePath); EmulatorBridge.nativeStop() } }
+    override fun onPause() {
+        super.onPause()
+        if (loaded) {
+            EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
+            EmulatorBridge.nativeStop()
+        }
+    }
     override fun onDestroy() { super.onDestroy(); if (loaded) EmulatorBridge.nativeStop() }
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() { if (loaded) { EmulatorBridge.nativeSaveSram(sramFile().absolutePath); EmulatorBridge.nativeStop() }; super.onBackPressed() }
+    override fun onBackPressed() {
+        if (loaded) {
+            EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
+            EmulatorBridge.nativeStop()
+        }
+        super.onBackPressed()
+    }
 }

@@ -124,7 +124,7 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
                 struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-                cb->context_type           = ours->context_type;
+                int requested = cb->context_type;
                 cb->context_reset          = ours->context_reset;
                 cb->context_destroy        = ours->context_destroy;
                 cb->get_current_framebuffer= ours->get_current_framebuffer;
@@ -132,12 +132,21 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->depth                  = ours->depth;
                 cb->stencil                = ours->stencil;
                 cb->bottom_left_origin     = ours->bottom_left_origin;
-                cb->version_major          = ours->version_major;
-                cb->version_minor          = ours->version_minor;
+                if (requested == RETRO_HW_CONTEXT_OPENGL_ES2) {
+                    cb->version_major = 2;
+                    cb->version_minor = 0;
+                } else if (requested == RETRO_HW_CONTEXT_OPENGL_ES3) {
+                    cb->version_major = 3;
+                    cb->version_minor = 0;
+                } else {
+                    cb->version_major = ours->version_major;
+                    cb->version_minor = ours->version_minor;
+                }
                 cb->cache_context          = ours->cache_context;
                 cb->debug_context          = ours->debug_context;
                 s_hw_render = true;
-                LOGI("HW render accepted (GLES3, depth+stencil)");
+                LOGI("HW render accepted type=%d ver=%u.%u",
+                     requested, cb->version_major, cb->version_minor);
                 return true;
             }
             LOGE("HW type %d unsupported", cb->context_type);
