@@ -234,6 +234,18 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_USERNAME:
             *(const char **)data = "player";
             return true;
+        case RETRO_ENVIRONMENT_SET_CORE_OPTIONS:
+        case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL:
+        case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
+        case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK:
+            return true;
+        case 45:
+        case 0x1002D:
+            LOGW("GET_VFS_INTERFACE not impl");
+            return false;
+        case 0x10033:
+            *(bool *)data = true;
+            return true;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
         case RETRO_ENVIRONMENT_SHUTDOWN: {

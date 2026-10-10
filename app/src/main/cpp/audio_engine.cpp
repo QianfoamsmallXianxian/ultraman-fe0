@@ -15,10 +15,26 @@ static constexpr int BUF = 4096;
 static int16_t g_buf[2][BUF];
 static std::atomic<int> g_idx{0};
 static std::atomic<bool> g_on{true};
+#define RING_FRAMES 16384
+static int16_t g_ring[RING_FRAMES * 2];
+static std::atomic<int> g_ring_head{0};
+static std::atomic<int> g_ring_tail{0};
 static void cb(SLAndroidSimpleBufferQueueItf, void *) {
     int i = g_idx.fetch_add(1) & 1;
-    memset(g_buf[i], 0, sizeof(int16_t) * BUF);
-    (*g_bq)->Enqueue(g_bq, g_buf[i], sizeof(int16_t) * BUF);
+    int16_t* out = g_buf[i];
+    int head = g_ring_head.load(std::memory_order_acquire);
+    int tail = g_ring_tail.load(std::memory_order_acquire);
+    int avail = (tail - head + RING_FRAMES) & (RING_FRAMES - 1);
+    int need = BUF / 2;
+    int take = avail < need ? avail : need;
+    for (int k = 0; k < take; k++) {
+        int idx = (head + k) & (RING_FRAMES - 1);
+        out[k * 2]     = g_ring[idx * 2];
+        out[k * 2 + 1] = g_ring[idx * 2 + 1];
+    }
+    if (take < need) memset(out + take * 2, 0, sizeof(int16_t) * (need - take) * 2);
+    g_ring_head.store((head + take) & (RING_FRAMES - 1), std::memory_order_release);
+    (*g_bq)->Enqueue(g_bq, out, sizeof(int16_t) * BUF);
 }
 void ultraman_audio_start(double sr) {
     LOGI("audio %.0f", sr);
@@ -54,6 +70,27 @@ void ultraman_audio_stop() {
     if (g_eng_obj) (*g_eng_obj)->Destroy(g_eng_obj);
     g_ply_obj = nullptr; g_out_obj = nullptr; g_eng_obj = nullptr;
 }
-void ultraman_audio_sample_cb(int16_t, int16_t) {}
-size_t ultraman_audio_batch_cb(const int16_t *, size_t f) { return f; }
+static size_t audio_batch_impl(const int16_t* data, size_t frames) {
+    if (!g_on.load() || !data || frames == 0) return frames;
+    int head = g_ring_head.load(std::memory_order_acquire);
+    int tail = g_ring_tail.load(std::memory_order_acquire);
+    int space = (head - tail - 1 + RING_FRAMES) & (RING_FRAMES - 1);
+    size_t written = 0;
+    for (size_t i = 0; i < frames && written < (size_t)space; i++) {
+        int idx = tail & (RING_FRAMES - 1);
+        g_ring[idx * 2]     = data[i * 2];
+        g_ring[idx * 2 + 1] = data[i * 2 + 1];
+        tail = (tail + 1) & (RING_FRAMES - 1);
+        written++;
+    }
+    g_ring_tail.store(tail, std::memory_order_release);
+    return frames;
+}
+void ultraman_audio_sample_cb(int16_t l, int16_t r) {
+    int16_t d[2] = { l, r };
+    audio_batch_impl(d, 1);
+}
+size_t ultraman_audio_batch_cb(const int16_t* data, size_t frames) {
+    return audio_batch_impl(data, frames);
+}
 void ultraman_set_audio_enabled(bool on) { g_on.store(on); }

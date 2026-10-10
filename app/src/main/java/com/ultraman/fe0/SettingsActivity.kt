@@ -30,12 +30,12 @@ class SettingsActivity : AppCompatActivity() {
         spBackend.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("OpenGL (推荐)", "Vulkan (实验·暂不可用)")
+            arrayOf("OpenGL 硬件渲染")
         )
-        spBackend.setSelection(cfg.backend.coerceIn(0, 1))
+        spBackend.setSelection(0)
         spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                cfg.backend = pos
+                cfg.backend = 0
             }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }

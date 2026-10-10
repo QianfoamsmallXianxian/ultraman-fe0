@@ -32,6 +32,8 @@ static std::atomic<bool> g_video_ready{false};
 static std::atomic<bool> g_hw_mode{false};
 static std::atomic<bool> g_hw_ready{false};
 static std::atomic<bool> g_surface_ok{false};
+static int g_win_w = 0;
+static int g_win_h = 0;
 static EGLSurface g_current_sfc = EGL_NO_SURFACE;
 
 static GLuint g_sw_tex   = 0;
@@ -304,13 +306,21 @@ void ultraman_video_present() {
 
     if (g_pending_rebuild.exchange(false)) {
         if (g_pending_w > 0 && g_pending_h > 0 && g_dpy != EGL_NO_DISPLAY) {
-            LOGI("rebuild FBO %dx%d", g_pending_w, g_pending_h);
+            LOGI("rebuild FBO: %dx%d -> %dx%d",
+                 g_hw_w, g_hw_h, g_pending_w, g_pending_h);
             if (ensure_current()) {
-                g_hw_w = g_pending_w;
-                g_hw_h = g_pending_h;
+                int old_fbo = (int)g_hw_fbo;
                 hw_destroy_fbo();
                 g_hw_ready.store(false);
-                if (hw_create_fbo(g_hw_w, g_hw_h)) g_hw_ready.store(true);
+                g_hw_w = g_pending_w;
+                g_hw_h = g_pending_h;
+                if (hw_create_fbo(g_hw_w, g_hw_h)) {
+                    g_hw_ready.store(true);
+                    LOGI("rebuild OK: fbo %d -> %u (%dx%d)",
+                         old_fbo, g_hw_fbo, g_hw_w, g_hw_h);
+                } else {
+                    LOGE("rebuild FAIL");
+                }
                 gl_state_reset();
             }
         }
@@ -319,12 +329,24 @@ void ultraman_video_present() {
     if (!g_hw_ready.load() || !g_hw_fbo) return;
     if (!ensure_current()) return;
 
-    int winW = ANativeWindow_getWidth(g_win);
-    int winH = ANativeWindow_getHeight(g_win);
+    int winW = g_win_w;
+    int winH = g_win_h;
+    if (winW <= 0 || winH <= 0) {
+        winW = ANativeWindow_getWidth(g_win);
+        winH = ANativeWindow_getHeight(g_win);
+        g_win_w = winW;
+        g_win_h = winH;
+    }
     if (winW <= 0 || winH <= 0) return;
-    if (winW != g_view_w || winH != g_view_h) {
-        g_view_w = winW;
-        g_view_h = winH;
+
+    static int stable_w = 0, stable_h = 0, unstable_count = 0;
+    if (winW != stable_w || winH != stable_h) {
+        unstable_count++;
+        if (unstable_count < 3) return;
+        stable_w = winW;
+        stable_h = winH;
+        unstable_count = 0;
+        LOGI("surface stable %dx%d", winW, winH);
     }
 
     float srcA = (float)g_hw_w / (float)g_hw_h;
@@ -522,9 +544,13 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         }
         if (s) {
             g_win = new_win;
-            LOGI("surface %p %dx%d", g_win,
-                 g_win ? ANativeWindow_getWidth(g_win) : 0,
-                 g_win ? ANativeWindow_getHeight(g_win) : 0);
+            if (g_win) {
+                int nw = ANativeWindow_getWidth(g_win);
+                int nh = ANativeWindow_getHeight(g_win);
+                g_win_w = nw;
+                g_win_h = nh;
+                LOGI("surface %p %dx%d", g_win, nw, nh);
+            }
             if (g_win && !g_video_ready.load()) need_start = true;
         } else {
             LOGI("surface null");
@@ -549,6 +575,7 @@ void ultraman_video_set_hw_size(int w, int h) {
     g_pending_w = w;
     g_pending_h = h;
     g_pending_rebuild.store(true);
+    LOGI("rebuild scheduled: %dx%d", w, h);
 }
 
 bool ultraman_video_create_fbo_now() {
