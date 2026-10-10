@@ -106,6 +106,15 @@
             android:layout_height="wrap_content"/>
     </LinearLayout>
     <Button
+        android:id="@+id/btnEditButtons"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_btn_secondary"
+        android:text="按键布局"
+        android:textColor="#7D8FA8"
+        android:textSize="14sp"/>
+    <Button
         android:id="@+id/btnBack"
         android:layout_width="match_parent"
         android:layout_height="56dp"

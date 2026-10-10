@@ -1,5 +1,6 @@
 package com.ultraman.fe0
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.SeekBar
@@ -19,6 +20,7 @@ class SettingsActivity : AppCompatActivity() {
         val swVsync = findViewById<SwitchCompat>(R.id.swVsync)
         val swAudio = findViewById<SwitchCompat>(R.id.swAudio)
         val btnBack = findViewById<Button>(R.id.btnBack)
+        val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
         sbRes.max = 4
         sbRes.progress = cfg.resolution - 1
@@ -38,6 +40,10 @@ class SettingsActivity : AppCompatActivity() {
         swVsync.setOnCheckedChangeListener { _, v -> cfg.vsync = v }
         swAudio.isChecked = cfg.audioEnabled
         swAudio.setOnCheckedChangeListener { _, v -> cfg.audioEnabled = v }
+
+        btnEdit.setOnClickListener {
+            startActivity(Intent(this, ButtonEditorActivity::class.java))
+        }
         btnBack.setOnClickListener { finish() }
     }
 }
