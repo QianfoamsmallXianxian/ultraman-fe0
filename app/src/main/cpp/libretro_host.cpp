@@ -112,7 +112,11 @@ static bool env_cb(unsigned cmd, void *data) {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
             if (s_backend == 2) {
-                LOGW("software mode, refusing HW");
+                LOGW("software mode: refuse HW");
+                return false;
+            }
+            if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
+                LOGW("vulkan type: refuse (not implemented)");
                 return false;
             }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
@@ -120,19 +124,20 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
                 struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-                cb->context_reset = ours->context_reset;
-                cb->context_destroy = ours->context_destroy;
-                cb->get_current_framebuffer = ours->get_current_framebuffer;
-                cb->get_proc_address = ours->get_proc_address;
-                cb->depth = ours->depth;
-                cb->stencil = ours->stencil;
-                cb->bottom_left_origin = ours->bottom_left_origin;
-                cb->version_major = ours->version_major;
-                cb->version_minor = ours->version_minor;
-                cb->cache_context = ours->cache_context;
-                cb->debug_context = ours->debug_context;
+                cb->context_type           = ours->context_type;
+                cb->context_reset          = ours->context_reset;
+                cb->context_destroy        = ours->context_destroy;
+                cb->get_current_framebuffer= ours->get_current_framebuffer;
+                cb->get_proc_address       = ours->get_proc_address;
+                cb->depth                  = ours->depth;
+                cb->stencil                = ours->stencil;
+                cb->bottom_left_origin     = ours->bottom_left_origin;
+                cb->version_major          = ours->version_major;
+                cb->version_minor          = ours->version_minor;
+                cb->cache_context          = ours->cache_context;
+                cb->debug_context          = ours->debug_context;
                 s_hw_render = true;
-                LOGI("HW render accepted");
+                LOGI("HW render accepted (GLES3, depth+stencil)");
                 return true;
             }
             LOGE("HW type %d unsupported", cb->context_type);
@@ -181,8 +186,27 @@ bool ultraman_load_game(const std::string &path) {
     LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
-    ultraman_video_set_geometry(av.geometry.base_width, av.geometry.base_height, av.timing.fps);
-    ultraman_video_set_hw(s_hw_render, 1920, 1088);
+    int scale = 2;
+    auto rit = s_vars.find("ppsspp_internal_resolution");
+    if (rit != s_vars.end()) {
+        int rw = 0, rh = 0;
+        if (sscanf(rit->second.c_str(), "%dx%d", &rw, &rh) == 2 && rw > 0) {
+            scale = rw / 480;
+            if (scale < 1) scale = 1;
+            if (scale > 8) scale = 8;
+        }
+    }
+    int base_w = (int)av.geometry.base_width;
+    int base_h = (int)av.geometry.base_height;
+    if (base_w <= 0) base_w = 480;
+    if (base_h <= 0) base_h = 272;
+    int hw_w = base_w * scale;
+    int hw_h = base_h * scale;
+    LOGI("hw geometry base=%dx%d scale=%d -> %dx%d",
+         base_w, base_h, scale, hw_w, hw_h);
+
+    ultraman_video_set_geometry(base_w, base_h, av.timing.fps);
+    ultraman_video_set_hw(s_hw_render, hw_w, hw_h);
     ultraman_video_start();
     struct retro_game_info game{};
     game.path = path.c_str();
