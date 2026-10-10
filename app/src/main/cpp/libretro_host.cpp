@@ -116,30 +116,20 @@ static bool env_cb(unsigned cmd, void *data) {
                 fps = info->timing.fps;
             }
             if (w == 0 || h == 0 || w > 4096 || h > 4096) {
-                LOGW("av_info invalid %ux%u fps=%.2f -> fallback 480x272", w, h, fps);
-                w = 480;
-                h = 272;
+                LOGW("av_info invalid %ux%u -> ignore (keep %dx%d)",
+                     w, h, s_render_w, s_render_h);
             } else {
-                LOGI("av_info valid %ux%u fps=%.2f", w, h, fps);
+                LOGI("av_info core says %ux%u fps=%.2f (keep %dx%d)",
+                     w, h, fps, s_render_w, s_render_h);
             }
-            int mult = s_render_w / 480;
-            if (mult < 1) mult = 1;
-            if (mult > 8) mult = 8;
-            int sw = (int)w * mult;
-            int sh = (int)h * mult;
-            s_render_w = sw;
-            s_render_h = sh;
-            LOGI("av_info apply %dx%d scale=%d", sw, sh, mult);
-            extern void ultraman_video_set_hw_size(int, int);
-            ultraman_video_set_hw_size(sw, sh);
+            /* 关键：不调用 set_hw_size，不触发 rebuild */
             return true;
         }
         case RETRO_ENVIRONMENT_SET_GEOMETRY: {
             struct retro_game_geometry *g = (struct retro_game_geometry *)data;
-            if (g && g->base_width > 0 && g->base_height > 0) {
-                LOGI("SET_GEOMETRY %ux%u", g->base_width, g->base_height);
-                extern void ultraman_video_set_hw_size(int, int);
-                ultraman_video_set_hw_size(g->base_width, g->base_height);
+            if (g) {
+                LOGI("geometry core says %ux%u (keep %dx%d)",
+                     g->base_width, g->base_height, s_render_w, s_render_h);
             }
             return true;
         }
@@ -304,7 +294,10 @@ bool ultraman_load_game(const std::string &path) {
     game.size = 0;
     game.meta = nullptr;
 
-    if (!retro_load_game(&game)) {
+    LOGI(">>> calling retro_load_game (render %dx%d) <<<", s_render_w, s_render_h);
+    bool lg = retro_load_game(&game);
+    LOGI(">>> retro_load_game returned %d <<<", lg ? 1 : 0);
+    if (!lg) {
         LOGE("retro_load_game FAILED");
         return false;
     }

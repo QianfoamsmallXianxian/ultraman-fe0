@@ -14,7 +14,7 @@ void ulog_init(const char *dir) {
     mkdir(dir, 0777);
     char path[512];
     snprintf(path, sizeof(path), "%s/native.log", dir);
-    FILE *f = fopen(path, "a");
+    FILE *f = fopen(path, "w");
     if (f) {
         g_file = f;
         __android_log_print(ANDROID_LOG_INFO, "UltramanFE0", "ulog: %s", path);
