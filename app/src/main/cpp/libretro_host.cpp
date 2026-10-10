@@ -282,42 +282,6 @@ bool ultraman_load_game(const std::string &path) {
     fclose(probe);
     LOGI("load_game: fopen ok");
 
-    struct stat st;
-    if (stat(path.c_str(), &st) != 0) {
-        LOGE("load_game: stat failed (path not accessible)");
-        return false;
-    }
-    if (!S_ISREG(st.st_mode)) {
-        LOGE("load_game: not a regular file");
-        return false;
-    }
-    LOGI("load_game: file ok size=%lld", (long long)st.st_size);
-
-    FILE *probe = fopen(path.c_str(), "rb");
-    if (!probe) {
-        LOGE("load_game: fopen failed");
-        return false;
-    }
-    fclose(probe);
-    LOGI("load_game: fopen ok");
-    s_system_dir = "/data/data/com.ultraman.fe0/files/system";
-    mkdir(s_system_dir.c_str(), 0777);
-
-    retro_set_environment(env_cb);
-    retro_set_video_refresh(ultraman_video_cb);
-    retro_set_audio_sample(on_a);
-    retro_set_audio_sample_batch(on_ab);
-    retro_set_input_poll(on_ip);
-    retro_set_input_state(on_is);
-
-    retro_init();
-    struct retro_system_info info{};
-    retro_get_system_info(&info);
-    LOGI("core: %s %s", info.library_name ? info.library_name : "?",
-         info.library_version ? info.library_version : "?");
-
-    struct retro_system_av_info av{};
-    retro_get_system_av_info(&av);
     LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
