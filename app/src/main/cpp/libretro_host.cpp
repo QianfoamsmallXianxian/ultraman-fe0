@@ -95,9 +95,7 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
-        case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:
-        case 69:
-            *(const char **)data = s_system_dir.c_str();
+        case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:            *(const char **)data = s_system_dir.c_str();
             return true;
         case RETRO_ENVIRONMENT_GET_OVERSCAN:
             *(bool *)data = false;
