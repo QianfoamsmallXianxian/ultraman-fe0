@@ -38,8 +38,7 @@ class EmulatorView @JvmOverloads constructor(
         holder.addCallback(this)
         paint.textAlign = Paint.Align.CENTER
         isFocusable = true
-        setZOrderOnTop(true)
-        holder.setFormat(android.graphics.PixelFormat.RGBA_8888)
+        setZOrderMediaOverlay(true)
     }
 
     override fun surfaceCreated(h: SurfaceHolder) {

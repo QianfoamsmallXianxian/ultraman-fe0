@@ -20,6 +20,8 @@ class PlayActivity : AppCompatActivity() {
         val root = FrameLayout(this)
         view = EmulatorView(this)
         root.addView(view, FrameLayout.LayoutParams(-1, -1))
+        val overlay = OverlayView(this)
+        root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
 
         gamePath = intent.dataString
