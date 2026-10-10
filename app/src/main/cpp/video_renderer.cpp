@@ -5,7 +5,6 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
-#include <GLES2/gl2ext.h>
 #include <dlfcn.h>
 #include <mutex>
 #include <atomic>
@@ -22,11 +21,11 @@ static EGLDisplay     g_dpy = EGL_NO_DISPLAY;
 static EGLSurface     g_sfc = EGL_NO_SURFACE;
 static EGLContext     g_ctx = EGL_NO_CONTEXT;
 static EGLConfig      g_cfg = nullptr;
-static std::mutex     g_mtx;
-
-static bool g_video_ready = false;
-static bool g_hw_mode     = false;
-static bool g_hw_ready    = false;
+static std::mutex     g_lifecycle_mtx;
+static std::atomic<bool> g_video_ready{false};
+static std::atomic<bool> g_hw_mode{false};
+static std::atomic<bool> g_hw_ready{false};
+static std::atomic<bool> g_surface_ok{false};
 
 static GLuint g_sw_tex   = 0;
 static GLuint g_sw_prog  = 0;
@@ -39,13 +38,11 @@ static GLuint g_hw_tex   = 0;
 static GLuint g_hw_depth = 0;
 static int    g_hw_w     = 960;
 static int    g_hw_h     = 544;
-
-static int g_sw_frames = 0;
-static int g_hw_frames = 0;
-static bool g_first_hw_logged = false;
-static bool g_first_sw_logged = false;
-
-static void* g_gles_lib = nullptr;
+static int    g_view_w   = 0;
+static int    g_view_h   = 0;
+static std::atomic<int> g_sw_frames{0};
+static std::atomic<int> g_hw_frames{0};
+static void*  g_gles_lib = nullptr;
 
 static const char* SW_VS =
     "#version 300 es\n"
@@ -71,7 +68,7 @@ static GLuint compile_shader(GLenum type, const char* src) {
     if (!ok) {
         GLchar log[512];
         glGetShaderInfoLog(s, 512, nullptr, log);
-        LOGE("shader compile: %s", log);
+        LOGE("shader: %s", log);
     }
     return s;
 }
@@ -88,7 +85,7 @@ static void sw_setup() {
     if (!ok) {
         GLchar log[512];
         glGetProgramInfoLog(p, 512, nullptr, log);
-        LOGE("program link: %s", log);
+        LOGE("link: %s", log);
     }
     glDeleteShader(v);
     glDeleteShader(f);
@@ -140,17 +137,19 @@ static void gl_state_reset() {
 }
 
 static void hw_destroy_fbo() {
-    if (g_hw_fbo)   { glDeleteFramebuffers(1, &g_hw_fbo);   g_hw_fbo = 0; }
-    if (g_hw_tex)   { glDeleteTextures(1, &g_hw_tex);       g_hw_tex = 0; }
-    if (g_hw_depth) { glDeleteRenderbuffers(1, &g_hw_depth);g_hw_depth = 0; }
+    if (g_hw_fbo)   { glDeleteFramebuffers(1, &g_hw_fbo);    g_hw_fbo = 0; }
+    if (g_hw_tex)   { glDeleteTextures(1, &g_hw_tex);        g_hw_tex = 0; }
+    if (g_hw_depth) { glDeleteRenderbuffers(1, &g_hw_depth); g_hw_depth = 0; }
 }
 
-static bool hw_create_fbo() {
-    if (g_hw_fbo) return true;
+static bool hw_create_fbo(int w, int h) {
+    if (w <= 0 || h <= 0) { LOGE("hw_create_fbo: bad size %dx%d", w, h); return false; }
+    g_hw_w = w;
+    g_hw_h = h;
 
     glGenTextures(1, &g_hw_tex);
     glBindTexture(GL_TEXTURE_2D, g_hw_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_hw_w, g_hw_h, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -159,7 +158,7 @@ static bool hw_create_fbo() {
 
     glGenRenderbuffers(1, &g_hw_depth);
     glBindRenderbuffer(GL_RENDERBUFFER, g_hw_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, g_hw_w, g_hw_h);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
 
     glGenFramebuffers(1, &g_hw_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
@@ -172,14 +171,9 @@ static bool hw_create_fbo() {
     if (st != GL_FRAMEBUFFER_COMPLETE) {
         LOGE("FBO incomplete: 0x%x", st);
         hw_destroy_fbo();
-        gl_state_reset();
         return false;
     }
-    LOGI("FBO %u created %dx%d (tex=%u depth=%u)",
-         g_hw_fbo, g_hw_w, g_hw_h, g_hw_tex, g_hw_depth);
-
-    gl_state_reset();
-    g_hw_ready = true;
+    LOGI("FBO %u %dx%d (tex=%u depth=%u)", g_hw_fbo, w, h, g_hw_tex, g_hw_depth);
     return true;
 }
 
@@ -189,26 +183,28 @@ static void hw_context_reset() {
         LOGE("context_reset: EGL not ready");
         return;
     }
-    eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) LOGW("pre-reset glGetError: 0x%x", err);
-
-    g_hw_ready = false;
-    hw_create_fbo();
-
-    if (g_hw_fbo) {
-        glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
-        GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        LOGI("context_reset: FBO=%u status=0x%x", g_hw_fbo, st);
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+        LOGE("context_reset: eglMakeCurrent fail 0x%x", eglGetError());
+        return;
     }
+    g_hw_ready.store(false);
+    if (g_hw_fbo) hw_destroy_fbo();
+
+    int w = g_hw_w > 0 ? g_hw_w : 960;
+    int h = g_hw_h > 0 ? g_hw_h : 544;
+    if (!hw_create_fbo(w, h)) {
+        gl_state_reset();
+        return;
+    }
+    g_hw_ready.store(true);
     gl_state_reset();
-    LOGI("context_reset done: hw_ready=%d fbo=%u", g_hw_ready, g_hw_fbo);
+    LOGI("context_reset done fbo=%u", g_hw_fbo);
 }
 
 static void hw_context_destroy() {
-    LOGI("hw context_destroy");
-    hw_destroy_fbo();
-    g_hw_ready = false;
+    LOGI("context_destroy");
+    if (g_hw_fbo) hw_destroy_fbo();
+    g_hw_ready.store(false);
 }
 
 static uintptr_t hw_get_current_fbo() {
@@ -217,9 +213,6 @@ static uintptr_t hw_get_current_fbo() {
 
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
-    static std::atomic<int> s_proc_count{0};
-    int pc = s_proc_count.fetch_add(1) + 1;
-
     void* p = (void*)eglGetProcAddress(sym);
     if (!p) {
         if (!g_gles_lib) {
@@ -230,10 +223,6 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!p) {
         static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
-    }
-
-    if (pc <= 20 || pc % 50 == 0) {
-        LOGI("proc[%d] %s -> %p", pc, sym, p);
     }
     return (retro_proc_address_t)p;
 }
@@ -256,62 +245,76 @@ struct retro_hw_render_callback* ultraman_get_hw_cb() {
 }
 
 void ultraman_video_set_hw(bool hw, int w, int h) {
-    g_hw_mode = hw;
+    g_hw_mode.store(hw);
     if (w > 0) g_hw_w = w;
     if (h > 0) g_hw_h = h;
     LOGI("video_set_hw %s %dx%d", hw ? "HW" : "SW", g_hw_w, g_hw_h);
 }
 
-void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
-    if (w > 0) g_hw_w = (int)w;
-    if (h > 0) g_hw_h = (int)h;
-}
+void ultraman_video_present() {
+    if (!g_video_ready.load() || !g_hw_mode.load()) return;
+    if (!g_hw_ready.load() || !g_hw_fbo) return;
+    if (!g_surface_ok.load() || !g_win) return;
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return;
 
-static std::atomic<int> g_cb_count{0};
-void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
-    (void)pitch;
-    int cn = g_cb_count.fetch_add(1) + 1;
-    if (cn <= 5 || cn == 30 || cn == 60 || cn == 120) {
-        LOGI("CB #%d hw=%d ready=%d fbo=%u data=%p %ux%u",
-             cn, g_hw_mode, g_hw_ready, g_hw_fbo, data, w, h);
-    }
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) return;
 
-    std::lock_guard<std::mutex> lk(g_mtx);
-    if (!g_video_ready || g_dpy == EGL_NO_DISPLAY || !g_win) {
-        if (cn <= 3) LOGE("CB: video not ready");
-        return;
-    }
-
-    eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
     int winW = ANativeWindow_getWidth(g_win);
     int winH = ANativeWindow_getHeight(g_win);
-
-    if (g_hw_mode) {
-        if (!g_hw_fbo) {
-            if (!g_first_hw_logged) {
-                LOGE("CB hw: no FBO");
-                g_first_hw_logged = true;
-            }
-            return;
-        }
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBlitFramebuffer(
-            0, g_hw_h, g_hw_w, 0,
-            0, 0, winW, winH,
-            GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        eglSwapBuffers(g_dpy, g_sfc);
-
-        g_hw_frames++;
-        if (g_hw_frames <= 3 || g_hw_frames == 30 || g_hw_frames == 60 || g_hw_frames == 120) {
-            LOGI("hw frame #%d src=%dx%d dst=%dx%d",
-                 g_hw_frames, g_hw_w, g_hw_h, winW, winH);
-        }
-        return;
+    if (winW <= 0 || winH <= 0) return;
+    if (winW != g_view_w || winH != g_view_h) {
+        g_view_w = winW;
+        g_view_h = winH;
     }
 
-    if (!data) return;
+    float srcA = (float)g_hw_w / (float)g_hw_h;
+    float dstA = (float)winW / (float)winH;
+    int vpW, vpH, vpX, vpY;
+    if (srcA > dstA) {
+        vpW = winW;
+        vpH = (int)((float)winW / srcA);
+        vpX = 0;
+        vpY = (winH - vpH) / 2;
+    } else {
+        vpH = winH;
+        vpW = (int)((float)winH * srcA);
+        vpX = (winW - vpW) / 2;
+        vpY = 0;
+    }
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, winW, winH);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBlitFramebuffer(
+        0, g_hw_h, g_hw_w, 0,
+        vpX, vpY, vpX + vpW, vpY + vpH,
+        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    if (!eglSwapBuffers(g_dpy, g_sfc)) return;
+
+    int f = g_hw_frames.fetch_add(1) + 1;
+    if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
+        LOGI("present #%d %dx%d -> %dx%d vp=%dx%d@%d,%d",
+             f, g_hw_w, g_hw_h, winW, winH, vpW, vpH, vpX, vpY);
+    }
+}
+
+void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
+    (void)pitch;
+    if (g_hw_mode.load()) return;
+    if (!g_video_ready.load() || !g_surface_ok.load()) return;
+    if (!data || !g_win) return;
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE) return;
+
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) return;
+
+    int winW = ANativeWindow_getWidth(g_win);
+    int winH = ANativeWindow_getHeight(g_win);
+    if (winW <= 0 || winH <= 0) return;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
@@ -322,6 +325,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     glViewport(0, 0, winW, winH);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -338,52 +342,57 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     glUseProgram(0);
     eglSwapBuffers(g_dpy, g_sfc);
 
-    g_sw_frames++;
-    if (g_sw_frames == 1 || g_sw_frames == 60) {
-        LOGI("sw frame #%d %ux%u -> %dx%d", g_sw_frames, w, h, winW, winH);
-    }
+    int f = g_sw_frames.fetch_add(1) + 1;
+    if (f == 1 || f == 60) LOGI("sw frame #%d %ux%u", f, w, h);
+}
+
+void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
+    if (w > 0) g_hw_w = (int)w;
+    if (h > 0) g_hw_h = (int)h;
 }
 
 void ultraman_video_start() {
-    std::lock_guard<std::mutex> lk(g_mtx);
+    std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
+    if (g_video_ready.load()) return;
     if (!g_win) { LOGE("video_start: no window"); return; }
-    LOGI("video_start hw=%d", g_hw_mode);
+    LOGI("video_start hw=%d", g_hw_mode.load() ? 1 : 0);
 
     g_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (g_dpy == EGL_NO_DISPLAY) { LOGE("no display"); return; }
     if (!eglInitialize(g_dpy, nullptr, nullptr)) { LOGE("eglInitialize fail"); return; }
     eglBindAPI(EGL_OPENGL_ES_API);
 
-
     EGLint attribs[] = {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
         EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
-        EGL_RED_SIZE,   8,
-        EGL_GREEN_SIZE, 8,
-        EGL_BLUE_SIZE,  8,
-        EGL_ALPHA_SIZE, 8,
-        EGL_DEPTH_SIZE, 24,
-        EGL_STENCIL_SIZE, 8,
+        EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24, EGL_STENCIL_SIZE, 8,
         EGL_NONE
     };
     EGLint n = 0;
     if (!eglChooseConfig(g_dpy, attribs, &g_cfg, 1, &n) || n == 0) {
         LOGE("no EGL config");
+        eglTerminate(g_dpy);
+        g_dpy = EGL_NO_DISPLAY;
         return;
     }
 
     g_sfc = eglCreateWindowSurface(g_dpy, g_cfg, g_win, nullptr);
-    if (g_sfc == EGL_NO_SURFACE) { LOGE("no surface"); return; }
+    if (g_sfc == EGL_NO_SURFACE) {
+        LOGE("no surface 0x%x", eglGetError());
+        eglTerminate(g_dpy);
+        g_dpy = EGL_NO_DISPLAY;
+        return;
+    }
 
-    EGLint cta[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 3,
-        EGL_NONE
-    };
+    EGLint cta[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
     g_ctx = eglCreateContext(g_dpy, g_cfg, EGL_NO_CONTEXT, cta);
     if (g_ctx == EGL_NO_CONTEXT) {
-        LOGE("no context");
+        LOGE("no context 0x%x", eglGetError());
         eglDestroySurface(g_dpy, g_sfc);
         g_sfc = EGL_NO_SURFACE;
+        eglTerminate(g_dpy);
+        g_dpy = EGL_NO_DISPLAY;
         return;
     }
     if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
@@ -394,27 +403,27 @@ void ultraman_video_start() {
     LOGI("GL version: %s", glGetString(GL_VERSION));
     LOGI("GL renderer: %s", glGetString(GL_RENDERER));
 
-    if (!g_hw_mode) {
-        sw_setup();
-    } else {
-        LOGI("hw mode: skip sw setup, wait for context_reset");
-    }
+    if (!g_hw_mode.load()) sw_setup();
 
-    g_video_ready = true;
-    LOGI("video ready");
+    g_video_ready.store(true);
+    g_surface_ok.store(true);
+    g_view_w = ANativeWindow_getWidth(g_win);
+    g_view_h = ANativeWindow_getHeight(g_win);
+    LOGI("video ready %dx%d", g_view_w, g_view_h);
 }
 
 void ultraman_video_stop() {
-    std::lock_guard<std::mutex> lk(g_mtx);
-    g_video_ready = false;
-    g_hw_ready = false;
+    std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
+    g_surface_ok.store(false);
+    g_video_ready.store(false);
+    g_hw_ready.store(false);
 
     if (g_dpy != EGL_NO_DISPLAY) {
         eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
-        if (g_hw_fbo || g_hw_tex || g_hw_depth) hw_destroy_fbo();
-        if (g_sw_tex)   { glDeleteTextures(1, &g_sw_tex);   g_sw_tex = 0; }
-        if (g_sw_vbo)   { glDeleteBuffers(1, &g_sw_vbo);    g_sw_vbo = 0; }
-        if (g_sw_prog)  { glDeleteProgram(g_sw_prog);       g_sw_prog = 0; }
+        if (g_hw_fbo) hw_destroy_fbo();
+        if (g_sw_tex)  { glDeleteTextures(1, &g_sw_tex);  g_sw_tex = 0; }
+        if (g_sw_vbo)  { glDeleteBuffers(1, &g_sw_vbo);   g_sw_vbo = 0; }
+        if (g_sw_prog) { glDeleteProgram(g_sw_prog);      g_sw_prog = 0; }
 
         eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (g_ctx != EGL_NO_CONTEXT) eglDestroyContext(g_dpy, g_ctx);
@@ -430,46 +439,25 @@ void ultraman_video_stop() {
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     bool need_start = false;
     {
-        std::lock_guard<std::mutex> lk(g_mtx);
+        std::lock_guard<std::mutex> lk(g_lifecycle_mtx);
         if (g_win) { ANativeWindow_release(g_win); g_win = nullptr; }
         if (s) {
             g_win = ANativeWindow_fromSurface(env, s);
             LOGI("surface %p %dx%d", g_win,
                  g_win ? ANativeWindow_getWidth(g_win) : 0,
                  g_win ? ANativeWindow_getHeight(g_win) : 0);
-            if (g_win && !g_video_ready) need_start = true;
+            if (g_win && !g_video_ready.load()) need_start = true;
         } else {
             LOGI("surface null");
+            g_surface_ok.store(false);
         }
     }
     if (need_start) {
-        LOGI("surface arrived: auto-starting EGL");
+        LOGI("surface arrived: auto-start EGL");
         ultraman_video_start();
     }
 }
 
-void ultraman_video_prepare_fbo() {
-    std::lock_guard<std::mutex> lk(g_mtx);
-    LOGI("prepare_fbo: vready=%d", g_video_ready);
-    if (!g_video_ready) {
-        LOGE("prepare_fbo: video not ready");
-        return;
-    }
-    eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
-    if (!g_hw_fbo) {
-        hw_create_fbo();
-    } else {
-        LOGI("prepare_fbo: FBO already %u", g_hw_fbo);
-    }
-    gl_state_reset();
-}
-
-void ultraman_video_set_hw_size(int w, int h) {
-    if (w > 0) g_hw_w = w;
-    if (h > 0) g_hw_h = h;
-    LOGI("set_hw_size %dx%d", g_hw_w, g_hw_h);
-}
-
 bool ultraman_video_is_ready() {
-    return g_video_ready;
+    return g_video_ready.load();
 }

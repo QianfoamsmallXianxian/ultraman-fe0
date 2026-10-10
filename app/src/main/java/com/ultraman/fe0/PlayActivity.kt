@@ -32,13 +32,16 @@ class PlayActivity : AppCompatActivity() {
         val overlay = OverlayView(this)
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
         val menuBtn = Button(this).apply {
-            text = "菜单"; alpha = 0.6f; textSize = 12f
+            text = "菜单"
+            alpha = 0.6f
+            textSize = 12f
             setBackgroundColor(0xAA000000.toInt())
             setTextColor(0xFFFFFFFF.toInt())
             setOnClickListener { showMenu() }
         }
         val lp = FrameLayout.LayoutParams(160, 90)
-        lp.leftMargin = 30; lp.topMargin = 30
+        lp.leftMargin = 30
+        lp.topMargin = 30
         root.addView(menuBtn, lp)
         setContentView(root)
 
@@ -54,19 +57,7 @@ class PlayActivity : AppCompatActivity() {
 
         if (!EmulatorBridge.ensureLoaded()) { finish(); return }
         EmulatorBridge.nativeInit(this)
-
-        val effectiveBackend = if (cfg.backend == ConfigManager.BACKEND_VULKAN) {
-            Toast.makeText(
-                this,
-                "Vulkan 渲染器暂不可用，已自动使用 OpenGL",
-                Toast.LENGTH_LONG
-            ).show()
-            ConfigManager.BACKEND_OPENGL
-        } else {
-            cfg.backend
-        }
-        cfg.backend = effectiveBackend
-        EmulatorBridge.nativeSetBackend(effectiveBackend)
+        EmulatorBridge.nativeSetBackend(cfg.backend)
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
@@ -131,10 +122,27 @@ class PlayActivity : AppCompatActivity() {
 
     private fun stateFile(): File = File(savesDir, "${gameKey}.state")
     private fun sramFile(): File = File(savesDir, "${gameKey}.sram")
-    private fun saveState() { toast(if (EmulatorBridge.nativeSaveState(stateFile().absolutePath)) "即时存档已保存" else "保存失败") }
-    private fun loadState() { val f = stateFile(); if (!f.exists()) { toast("无存档"); return }; toast(if (EmulatorBridge.nativeLoadState(f.absolutePath)) "已读取" else "读取失败") }
-    private fun saveSram() { toast(if (EmulatorBridge.nativeSaveSram(sramFile().absolutePath)) "内存档已保存" else "保存失败") }
-    private fun loadSram() { val f = sramFile(); if (!f.exists()) { toast("无内存档"); return }; toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败") }
+
+    private fun saveState() {
+        toast(if (EmulatorBridge.nativeSaveState(stateFile().absolutePath)) "即时存档已保存" else "保存失败")
+    }
+
+    private fun loadState() {
+        val f = stateFile()
+        if (!f.exists()) { toast("无存档"); return }
+        toast(if (EmulatorBridge.nativeLoadState(f.absolutePath)) "已读取" else "读取失败")
+    }
+
+    private fun saveSram() {
+        toast(if (EmulatorBridge.nativeSaveSram(sramFile().absolutePath)) "内存档已保存" else "保存失败")
+    }
+
+    private fun loadSram() {
+        val f = sramFile()
+        if (!f.exists()) { toast("无内存档"); return }
+        toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败")
+    }
+
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
     override fun onPause() {
@@ -144,7 +152,12 @@ class PlayActivity : AppCompatActivity() {
             EmulatorBridge.nativeStop()
         }
     }
-    override fun onDestroy() { super.onDestroy(); if (loaded) EmulatorBridge.nativeStop() }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (loaded) EmulatorBridge.nativeStop()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (loaded) {

@@ -21,12 +21,11 @@ extern void ultraman_video_set_geometry(unsigned, unsigned, double);
 extern void ultraman_video_start();
 extern void ultraman_video_stop();
 extern void ultraman_video_set_hw(bool, int, int);
+extern void ultraman_video_present();
+extern bool ultraman_video_is_ready();
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
-extern void ultraman_video_prepare_fbo();
-extern void ultraman_video_set_hw_size(int, int);
-extern bool ultraman_video_is_ready();
 
 static std::atomic<bool> s_run{false};
 static std::atomic<bool> s_loaded{false};
@@ -36,6 +35,8 @@ static std::atomic<int> s_frames{0};
 static std::map<std::string, std::string> s_vars;
 static bool s_hw_render = false;
 static int s_backend = 0;
+static int s_render_w = 960;
+static int s_render_h = 544;
 
 static const char *resolution_for(int m) {
     switch (m) {
@@ -50,13 +51,9 @@ static const char *resolution_for(int m) {
 
 void ultraman_set_backend(int b) {
     s_backend = b;
-    if (b == 0) {
-        s_vars["ppsspp_backend"] = "OpenGL";
-    } else if (b == 1) {
-        s_vars["ppsspp_backend"] = "Vulkan";
-    } else {
-        s_vars["ppsspp_backend"] = "OpenGL";
-    }
+    if (b == 0) s_vars["ppsspp_backend"] = "OpenGL";
+    else if (b == 1) s_vars["ppsspp_backend"] = "Vulkan";
+    else s_vars["ppsspp_backend"] = "OpenGL";
     LOGI("set_backend=%d ppsspp_backend=%s", b, s_vars["ppsspp_backend"].c_str());
 }
 
@@ -64,30 +61,30 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_internal_resolution"] = resolution_for(r);
     s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
     s_vars["ppsspp_audio_latency"] = a ? "low" : "high";
-    if (s_vars.find("ppsspp_backend") == s_vars.end()) {
+    if (s_vars.find("ppsspp_backend") == s_vars.end())
         s_vars["ppsspp_backend"] = "OpenGL";
-    }
     s_vars["ppsspp_software_rendering"] = "disabled";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
     s_vars["ppsspp_rendering_mode"] = "buffered";
     s_vars["ppsspp_language"] = "Simplified Chinese";
     s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
-    LOGI("set_options res=%d(%s) vsync=%d audio=%d", r, resolution_for(r), v, a);
+    int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
+    s_render_w = 480 * mult;
+    s_render_h = 272 * mult;
+    LOGI("set_options res=%d(%s) -> %dx%d vsync=%d audio=%d",
+         r, resolution_for(r), s_render_w, s_render_h, v, a);
 }
 
 static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
-    if (it != s_vars.end()) {
-        LOGI("GET_VAR %s -> %s", key, it->second.c_str());
-        return it->second.c_str();
-    }
+    if (it != s_vars.end()) return it->second.c_str();
     return nullptr;
 }
+
 static bool env_cb(unsigned cmd, void *data) {
     switch (cmd) {
         case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
-            LOGI("env PIXEL_FORMAT=%d", *(int*)data);
             return true;
         case RETRO_ENVIRONMENT_GET_CAN_DUPE:
             *(bool *)data = false;
@@ -95,22 +92,24 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:
+        case 69:
             *(const char **)data = s_system_dir.c_str();
+            return true;
+        case RETRO_ENVIRONMENT_GET_OVERSCAN:
+            *(bool *)data = false;
             return true;
         case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
         case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
+        case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+        case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+        case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
+        case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
+        case RETRO_ENVIRONMENT_SET_GEOMETRY:
+        case RETRO_ENVIRONMENT_SET_ROTATION:
             return true;
-        case RETRO_ENVIRONMENT_SET_VARIABLES: {
-            LOGI("=== CORE VARIABLES ===");
-            const struct retro_variable *v = (const struct retro_variable *)data;
-            while (v && v->key) {
-                LOGI("VAR %s = %s", v->key, v->value ? v->value : "(null)");
-                v++;
-            }
-            LOGI("=== END ===");
+        case RETRO_ENVIRONMENT_SET_VARIABLES:
             return true;
-        }
         case RETRO_ENVIRONMENT_GET_VARIABLE: {
             struct retro_variable *v = (struct retro_variable *)data;
             const char *val = lookup_var(v->key);
@@ -122,10 +121,9 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
-            LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
-
+            LOGI("SET_HW_RENDER type=%d", cb->context_type);
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGW("Vulkan requested: frontend has no Vulkan impl, refusing");
+                LOGW("Vulkan refused");
                 return false;
             }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
@@ -146,27 +144,14 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->cache_context           = ours->cache_context;
                 cb->debug_context           = ours->debug_context;
                 s_hw_render = true;
-                LOGI("HW render accepted type=%d ver=%u.%u",
-                     requested, cb->version_major, cb->version_minor);
-                if (ultraman_video_is_ready()) {
-                    ultraman_video_prepare_fbo();
-                } else {
-                    LOGE("SET_HW_RENDER: video not ready");
-                }
+                LOGI("HW accepted type=%d ver=%u.%u", requested,
+                     cb->version_major, cb->version_minor);
                 return true;
             }
-            LOGE("HW type %d unsupported", cb->context_type);
             return false;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
-            LOGW("GET_HW_RENDER_INTERFACE: no interface");
             return false;
-        case RETRO_ENVIRONMENT_SET_MESSAGE:
-            return true;
-        case RETRO_ENVIRONMENT_GET_LANGUAGE: *(unsigned *)data = 0; return true;
-        case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: *(bool *)data = true; return true;
-        case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS: *(unsigned *)data = 1; return true;
-        case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION: *(unsigned *)data = 1; return true;
         case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
             *(unsigned *)data = RETRO_HW_CONTEXT_OPENGL_ES3;
             return true;
@@ -179,83 +164,85 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
             *(float *)data = 60.0f;
             return true;
-        case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
-            LOGI("SET_SYSTEM_AV_INFO");
+        case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
+            *(bool *)data = true;
             return true;
-        case RETRO_ENVIRONMENT_SET_GEOMETRY:
-            LOGI("SET_GEOMETRY");
+        case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS:
+            *(unsigned *)data = 1;
             return true;
-        case RETRO_ENVIRONMENT_SET_ROTATION:
-            LOGI("SET_ROTATION");
+        case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
+            *(unsigned *)data = 1;
             return true;
-        case RETRO_ENVIRONMENT_GET_OVERSCAN:
-            *(bool *)data = false;
+        case RETRO_ENVIRONMENT_GET_LANGUAGE:
+            *(unsigned *)data = 0;
             return true;
+        case RETRO_ENVIRONMENT_GET_USERNAME:
+            *(const char **)data = "player";
+            return true;
+        case RETRO_ENVIRONMENT_SET_MESSAGE:
+            return true;
+        case RETRO_ENVIRONMENT_SHUTDOWN:
+            LOGW("core requested SHUTDOWN");
+            return true;
+        case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
+            return false;
         default:
-            LOGI("env unhandled=%u", cmd);
             return false;
     }
 }
+
 static void on_a(int16_t l, int16_t r) { ultraman_audio_sample_cb(l, r); }
 static size_t on_ab(const int16_t *d, size_t f) { return ultraman_audio_batch_cb(d, f); }
 static void on_ip() { ultraman_poll_input_cb(); }
 static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
     return ultraman_input_state_cb(p, d, i, id);
 }
+
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
     s_system_dir = "/data/data/com.ultraman.fe0/files/system";
     mkdir(s_system_dir.c_str(), 0777);
+
     retro_set_environment(env_cb);
     retro_set_video_refresh(ultraman_video_cb);
     retro_set_audio_sample(on_a);
     retro_set_audio_sample_batch(on_ab);
     retro_set_input_poll(on_ip);
     retro_set_input_state(on_is);
+
     retro_init();
-    LOGI("retro_init ok");
     struct retro_system_info info{};
     retro_get_system_info(&info);
     LOGI("core: %s %s", info.library_name ? info.library_name : "?",
          info.library_version ? info.library_version : "?");
+
     struct retro_system_av_info av{};
     retro_get_system_av_info(&av);
     LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
-    int scale = 2;
-    auto rit = s_vars.find("ppsspp_internal_resolution");
-    if (rit != s_vars.end()) {
-        int rw = 0, rh = 0;
-        if (sscanf(rit->second.c_str(), "%dx%d", &rw, &rh) == 2 && rw > 0) {
-            scale = rw / 480;
-            if (scale < 1) scale = 1;
-            if (scale > 8) scale = 8;
-        }
-    }
-    int base_w = (int)av.geometry.base_width;
-    int base_h = (int)av.geometry.base_height;
-    if (base_w <= 0) base_w = 480;
-    if (base_h <= 0) base_h = 272;
-    int hw_w = base_w * scale;
-    int hw_h = base_h * scale;
-    LOGI("hw geometry base=%dx%d scale=%d -> %dx%d",
-         base_w, base_h, scale, hw_w, hw_h);
 
-    ultraman_video_set_geometry(base_w, base_h, av.timing.fps);
-    ultraman_video_set_hw_size(hw_w, hw_h);
-    LOGI("geometry set %dx%d (scale=%d)", hw_w, hw_h, scale);
+    ultraman_video_set_geometry(av.geometry.base_width, av.geometry.base_height, av.timing.fps);
+    ultraman_video_set_hw(true, s_render_w, s_render_h);
+    LOGI("hw size %dx%d", s_render_w, s_render_h);
+
     struct retro_game_info game{};
     game.path = path.c_str();
     game.data = nullptr;
     game.size = 0;
     game.meta = nullptr;
-    if (!retro_load_game(&game)) { LOGE("retro_load_game FAILED"); return false; }
-    LOGI("retro_load_game ok hw=%d", s_hw_render);
+
+    if (!retro_load_game(&game)) {
+        LOGE("retro_load_game FAILED");
+        return false;
+    }
+    LOGI("retro_load_game ok hw=%d", s_hw_render ? 1 : 0);
+
     ultraman_audio_start(av.timing.sample_rate);
     s_loaded.store(true);
     return true;
 }
+
 void ultraman_start_loop() {
     if (s_run.exchange(true)) return;
     LOGI("start loop");
@@ -264,12 +251,15 @@ void ultraman_start_loop() {
         while (s_run.load()) {
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
-            if (f <= 10 || f == 30 || f == 60 || f == 120 || f == 300 || f == 600)
+            if (s_hw_render) ultraman_video_present();
+            if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
                 LOGI("frame %d", f);
+            }
         }
         LOGI("loop thread ended");
     });
 }
+
 void ultraman_stop_loop() {
     if (!s_run.exchange(false)) return;
     LOGI("stop loop");
@@ -277,27 +267,27 @@ void ultraman_stop_loop() {
     if (s_loaded.exchange(false)) {
         retro_unload_game();
         retro_deinit();
-        ultraman_video_stop();
-        ultraman_audio_stop();
+        LOGI("core deinit done");
     }
 }
+
 bool ultraman_save_state(const char *path) {
     size_t size = retro_serialize_size();
-    if (size == 0) { LOGE("serialize_size=0"); return false; }
+    if (size == 0) return false;
     void *buf = malloc(size);
     if (!buf) return false;
     if (!retro_serialize(buf, size)) { free(buf); return false; }
     FILE *f = fopen(path, "wb");
-    if (!f) { free(buf); LOGE("open fail: %s", path); return false; }
+    if (!f) { free(buf); return false; }
     size_t w = fwrite(buf, 1, size, f);
     fclose(f);
     free(buf);
-    LOGI("state saved %zu -> %s", w, path);
     return w == size;
 }
+
 bool ultraman_load_state(const char *path) {
     FILE *f = fopen(path, "rb");
-    if (!f) { LOGE("no file: %s", path); return false; }
+    if (!f) return false;
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -308,28 +298,27 @@ bool ultraman_load_state(const char *path) {
     fclose(f);
     bool ok = retro_unserialize(buf, r);
     free(buf);
-    LOGI("state load %zu from %s -> %d", r, path, ok);
     return ok;
 }
+
 bool ultraman_save_sram(const char *path) {
     void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
     size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
-    if (!data || size == 0) { LOGE("no sram"); return false; }
+    if (!data || size == 0) return false;
     FILE *f = fopen(path, "wb");
     if (!f) return false;
     size_t w = fwrite(data, 1, size, f);
     fclose(f);
-    LOGI("sram saved %zu -> %s", w, path);
     return w == size;
 }
+
 bool ultraman_load_sram(const char *path) {
     void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
     size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
-    if (!data || size == 0) { LOGE("no sram"); return false; }
+    if (!data || size == 0) return false;
     FILE *f = fopen(path, "rb");
     if (!f) return false;
     size_t r = fread(data, 1, size, f);
     fclose(f);
-    LOGI("sram load %zu from %s", r, path);
     return r > 0;
 }
