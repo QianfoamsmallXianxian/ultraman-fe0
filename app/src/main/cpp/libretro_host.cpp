@@ -111,12 +111,8 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
-            if (s_backend == 2) {
-                LOGW("software mode: refuse HW");
-                return false;
-            }
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGW("vulkan type: refuse (not implemented)");
+                LOGE("Vulkan requested: refusing (not implemented)");
                 return false;
             }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
@@ -132,16 +128,8 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->depth                  = ours->depth;
                 cb->stencil                = ours->stencil;
                 cb->bottom_left_origin     = ours->bottom_left_origin;
-                if (requested == RETRO_HW_CONTEXT_OPENGL_ES2) {
-                    cb->version_major = 2;
-                    cb->version_minor = 0;
-                } else if (requested == RETRO_HW_CONTEXT_OPENGL_ES3) {
-                    cb->version_major = 3;
-                    cb->version_minor = 0;
-                } else {
-                    cb->version_major = ours->version_major;
-                    cb->version_minor = ours->version_minor;
-                }
+                cb->version_major          = (requested == RETRO_HW_CONTEXT_OPENGL_ES2) ? 2 : 3;
+                cb->version_minor          = 0;
                 cb->cache_context          = ours->cache_context;
                 cb->debug_context          = ours->debug_context;
                 s_hw_render = true;

@@ -62,7 +62,14 @@ class PlayActivity : AppCompatActivity() {
             if (!loaded) {
                 loaded = EmulatorBridge.nativeLoadGame(gamePath!!)
                 if (!loaded) {
-                    runOnUiThread { finish() }
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            "加载失败：请尝试切换渲染器为 OpenGL",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        finish()
+                    }
                 } else {
                     val sramFile = File(savesDir, "${gameKey}.sram")
                     if (sramFile.exists()) {

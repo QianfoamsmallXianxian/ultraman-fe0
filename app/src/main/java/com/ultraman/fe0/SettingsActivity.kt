@@ -26,12 +26,16 @@ class SettingsActivity : AppCompatActivity() {
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
-        spBackend.adapter = ArrayAdapter(this,
+        spBackend.adapter = ArrayAdapter(
+            this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("OpenGL (推荐)", "Vulkan (实验)", "软件渲染"))
-        spBackend.setSelection(cfg.backend.coerceIn(0, 2))
+            arrayOf("OpenGL (推荐)", "Vulkan (实验)")
+        )
+        spBackend.setSelection(cfg.backend.coerceIn(0, 1))
         spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) { cfg.backend = pos }
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                cfg.backend = pos
+            }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
 
@@ -39,7 +43,10 @@ class SettingsActivity : AppCompatActivity() {
         sbRes.progress = cfg.resolution - 1
         tvRes.text = "${cfg.resolution}x"
         sbRes.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: SeekBar, p: Int, u: Boolean) { tvRes.text = "${p + 1}x"; cfg.resolution = p + 1 }
+            override fun onProgressChanged(s: SeekBar, p: Int, u: Boolean) {
+                tvRes.text = "${p + 1}x"
+                cfg.resolution = p + 1
+            }
             override fun onStartTrackingTouch(s: SeekBar) {}
             override fun onStopTrackingTouch(s: SeekBar) {}
         })

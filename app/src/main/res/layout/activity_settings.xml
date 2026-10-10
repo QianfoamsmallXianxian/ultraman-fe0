@@ -49,7 +49,7 @@
         android:layout_marginTop="10dp" android:background="@drawable/bg_card"
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="视频后端" android:textColor="#E0E6ED" android:textSize="15sp"/>
+            android:layout_weight="1" android:text="渲染器" android:textColor="#E0E6ED" android:textSize="15sp"/>
         <Spinner android:id="@+id/spBackend" android:layout_width="wrap_content"
             android:layout_height="wrap_content" android:minWidth="120dp"/>
     </LinearLayout>

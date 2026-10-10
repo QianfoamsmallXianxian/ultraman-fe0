@@ -418,7 +418,7 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         }
     }
     if (need_start) {
-        LOGI("surface ready after video_start missed, starting EGL now");
+        LOGI("surface arrived: auto-starting EGL");
         ultraman_video_start();
     }
 }
