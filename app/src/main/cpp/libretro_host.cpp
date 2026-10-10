@@ -262,6 +262,44 @@ static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
 
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
+
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        LOGE("load_game: stat failed (path not accessible)");
+        return false;
+    }
+    if (!S_ISREG(st.st_mode)) {
+        LOGE("load_game: not a regular file");
+        return false;
+    }
+    LOGI("load_game: file ok size=%lld", (long long)st.st_size);
+
+    FILE *probe = fopen(path.c_str(), "rb");
+    if (!probe) {
+        LOGE("load_game: fopen failed");
+        return false;
+    }
+    fclose(probe);
+    LOGI("load_game: fopen ok");
+
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        LOGE("load_game: stat failed (path not accessible)");
+        return false;
+    }
+    if (!S_ISREG(st.st_mode)) {
+        LOGE("load_game: not a regular file");
+        return false;
+    }
+    LOGI("load_game: file ok size=%lld", (long long)st.st_size);
+
+    FILE *probe = fopen(path.c_str(), "rb");
+    if (!probe) {
+        LOGE("load_game: fopen failed");
+        return false;
+    }
+    fclose(probe);
+    LOGI("load_game: fopen ok");
     s_system_dir = "/data/data/com.ultraman.fe0/files/system";
     mkdir(s_system_dir.c_str(), 0777);
 

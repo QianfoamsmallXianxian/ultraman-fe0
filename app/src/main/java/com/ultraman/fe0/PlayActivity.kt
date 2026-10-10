@@ -1,6 +1,7 @@
 package com.ultraman.fe0
 
 import android.app.AlertDialog
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -19,58 +20,27 @@ class PlayActivity : AppCompatActivity() {
     private val cfg by lazy { ConfigManager(this) }
     private var gamePath: String? = null
     private var loaded = false
+    private var initGuard = false
     private lateinit var savesDir: File
     private var gameKey = "game"
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-        val root = FrameLayout(this)
-        view = EmulatorView(this)
-        root.addView(view, FrameLayout.LayoutParams(-1, -1))
-        val overlay = OverlayView(this)
-        root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
-        val menuBtn = Button(this).apply {
-            text = "菜单"
-            alpha = 0.6f
-            textSize = 12f
-            setBackgroundColor(0xAA000000.toInt())
-            setTextColor(0xFFFFFFFF.toInt())
-            setOnClickListener { showMenu() }
-        }
-        val lp = FrameLayout.LayoutParams(160, 90)
-        lp.leftMargin = 30
-        lp.topMargin = 30
-        root.addView(menuBtn, lp)
-        setContentView(root)
-
-        if (cfg.fullscreen) window.decorView.post { applyFullscreen() }
-
-        gamePath = intent.dataString
-        if (gamePath.isNullOrEmpty()) { finish(); return }
-        cfg.lastGamePath = gamePath
-
-        savesDir = File(getExternalFilesDir(null), "saves").apply { mkdirs() }
-        gameKey = File(gamePath!!).nameWithoutExtension
-            .replace(Regex("[^a-zA-Z0-9_]"), "_").ifEmpty { "game" }
-
-        if (!EmulatorBridge.ensureLoaded()) { finish(); return }
-        EmulatorBridge.nativeInit(this)
-        EmulatorBridge.nativeSetBackend(cfg.backend)
-        EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
-        EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
-
         view.onSurfaceReady = {
+            if (initGuard) return@onSurfaceReady
+            initGuard = true
             if (!loaded) {
-                loaded = EmulatorBridge.nativeLoadGame(gamePath!!)
+                val realPath = copyIsoToPrivate(Uri.parse(gamePath!!))
+                if (realPath == null) {
+                    runOnUiThread {
+                        Toast.makeText(this, "ISO 复制失败", Toast.LENGTH_LONG).show()
+                        finish()
+                    }
+                    return@onSurfaceReady
+                }
+                android.util.Log.i("UltramanFE0", "native path: $realPath")
+                loaded = EmulatorBridge.nativeLoadGame(realPath)
                 if (!loaded) {
                     runOnUiThread {
-                        Toast.makeText(
-                            this,
-                            "加载失败：请尝试切换渲染器为 OpenGL",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this, "加载失败", Toast.LENGTH_LONG).show()
                         finish()
                     }
                 } else {
@@ -81,6 +51,35 @@ class PlayActivity : AppCompatActivity() {
                     EmulatorBridge.nativeStart()
                 }
             }
+        }
+    }
+
+    private fun copyIsoToPrivate(src: Uri): String? {
+        return try {
+            val dir = File(filesDir, "iso").apply { mkdirs() }
+            val dst = File(dir, "game.iso")
+            if (dst.exists() && dst.length() > 0) {
+                android.util.Log.i("UltramanFE0", "iso cached: ${dst.absolutePath} (${dst.length()} bytes)")
+                return dst.absolutePath
+            }
+            android.util.Log.i("UltramanFE0", "copying iso from $src")
+            contentResolver.openInputStream(src)?.use { input ->
+                java.io.FileOutputStream(dst).use { output ->
+                    val buf = ByteArray(1024 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n <= 0) break
+                        output.write(buf, 0, n)
+                        total += n
+                    }
+                    android.util.Log.i("UltramanFE0", "iso copied: $total bytes")
+                }
+            } ?: return null
+            if (dst.length() > 0) dst.absolutePath else null
+        } catch (t: Throwable) {
+            android.util.Log.e("UltramanFE0", "copy iso failed", t)
+            null
         }
     }
 
