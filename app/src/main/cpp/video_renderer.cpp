@@ -12,6 +12,8 @@
 #include "ulog.h"
 #include "libretro.h"
 
+extern void ultraman_on_video_ready();
+
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
 #define LOGW(...) ulog_write(ANDROID_LOG_WARN,  "UltramanFE0", __VA_ARGS__)
@@ -26,6 +28,7 @@ static std::atomic<bool> g_video_ready{false};
 static std::atomic<bool> g_hw_mode{false};
 static std::atomic<bool> g_hw_ready{false};
 static std::atomic<bool> g_surface_ok{false};
+static EGLSurface g_current_sfc = EGL_NO_SURFACE;
 
 static GLuint g_sw_tex   = 0;
 static GLuint g_sw_prog  = 0;
@@ -116,6 +119,19 @@ static void sw_setup() {
     LOGI("sw setup done");
 }
 
+static bool ensure_current() {
+    if (g_current_sfc == g_sfc && eglGetCurrentContext() == g_ctx) {
+        return true;
+    }
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+        LOGE("eglMakeCurrent failed 0x%x", eglGetError());
+        g_current_sfc = EGL_NO_SURFACE;
+        return false;
+    }
+    g_current_sfc = g_sfc;
+    return true;
+}
+
 static void gl_state_reset() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -183,8 +199,8 @@ static void hw_context_reset() {
         LOGE("context_reset: EGL not ready");
         return;
     }
-    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
-        LOGE("context_reset: eglMakeCurrent fail 0x%x", eglGetError());
+    if (!ensure_current()) {
+        LOGE("context_reset: ensure_current fail");
         return;
     }
     g_hw_ready.store(false);
@@ -257,7 +273,7 @@ void ultraman_video_present() {
     if (!g_surface_ok.load() || !g_win) return;
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return;
 
-    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) return;
+    if (!ensure_current()) return;
 
     int winW = ANativeWindow_getWidth(g_win);
     int winH = ANativeWindow_getHeight(g_win);
@@ -310,7 +326,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     if (!data || !g_win) return;
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE) return;
 
-    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) return;
+    if (!ensure_current()) return;
 
     int winW = ANativeWindow_getWidth(g_win);
     int winH = ANativeWindow_getHeight(g_win);
@@ -410,6 +426,8 @@ void ultraman_video_start() {
     g_view_w = ANativeWindow_getWidth(g_win);
     g_view_h = ANativeWindow_getHeight(g_win);
     LOGI("video ready %dx%d", g_view_w, g_view_h);
+
+    ultraman_on_video_ready();
 }
 
 void ultraman_video_stop() {
@@ -434,6 +452,7 @@ void ultraman_video_stop() {
     g_ctx = EGL_NO_CONTEXT;
     g_sfc = EGL_NO_SURFACE;
     g_cfg = nullptr;
+    g_current_sfc = EGL_NO_SURFACE;
 }
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {

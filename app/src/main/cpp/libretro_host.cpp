@@ -37,6 +37,8 @@ static bool s_hw_render = false;
 static int s_backend = 0;
 static int s_render_w = 960;
 static int s_render_h = 544;
+static struct retro_hw_render_callback* s_pending_hw_cb = nullptr;
+static void (*s_pending_reset_cb)() = nullptr;
 
 static const char *resolution_for(int m) {
     switch (m) {
@@ -146,6 +148,12 @@ static bool env_cb(unsigned cmd, void *data) {
                 s_hw_render = true;
                 LOGI("HW accepted type=%d ver=%u.%u", requested,
                      cb->version_major, cb->version_minor);
+                if (!ultraman_video_is_ready()) {
+                    s_pending_hw_cb = cb;
+                    LOGW("EGL not ready yet: defer context_reset");
+                } else {
+                    LOGI("EGL ready: core will call context_reset");
+                }
                 return true;
             }
             return false;
@@ -321,4 +329,19 @@ bool ultraman_load_sram(const char *path) {
     size_t r = fread(data, 1, size, f);
     fclose(f);
     return r > 0;
+}
+
+void ultraman_on_video_ready() {
+    if (!s_pending_hw_cb) {
+        LOGI("video_ready: no pending hw cb");
+        return;
+    }
+    LOGI("video_ready: invoking deferred context_reset");
+    struct retro_hw_render_callback* cb = s_pending_hw_cb;
+    s_pending_hw_cb = nullptr;
+
+    if (cb->context_reset) {
+        cb->context_reset();
+        LOGI("deferred context_reset done");
+    }
 }
