@@ -2,7 +2,9 @@
 #include <atomic>
 #include <thread>
 #include <string>
-#include <cstdio>
+#include <cstring>
+#include <vector>
+#include <map>
 #include "libretro.h"
 #include "ulog.h"
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
@@ -22,13 +24,35 @@ extern void ultraman_audio_stop();
 static std::atomic<bool> s_run{false};
 static std::atomic<bool> s_loaded{false};
 static std::thread s_thread;
-static std::string s_dir;
+static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
+static std::map<std::string, std::string> s_vars;
+static int s_resolution = 2;
+static bool s_vsync = true;
+static bool s_audio = true;
+
+void ultraman_set_options(int r, bool v, bool a) {
+    s_resolution = r;
+    s_vsync = v;
+    s_audio = a;
+    s_vars["ppsspp_internal_resolution"] = std::to_string(r) + "x";
+    s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
+    s_vars["ppsspp_audio"] = a ? "enabled" : "disabled";
+    s_vars["ppsspp_graphics_backend"] = "opengl";
+    LOGI("options: res=%d vsync=%d audio=%d", r, v, a);
+}
+
+static const char *lookup_var(const char *key) {
+    if (!key) return nullptr;
+    auto it = s_vars.find(key);
+    if (it != s_vars.end()) return it->second.c_str();
+    return nullptr;
+}
 
 static bool env_cb(unsigned cmd, void *data) {
     switch (cmd) {
         case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
-            LOGI("env: SET_PIXEL_FORMAT=%d", *(int*)data);
+            LOGI("env: PIXEL_FORMAT=%d", *(int*)data);
             return true;
         case RETRO_ENVIRONMENT_GET_CAN_DUPE:
             *(bool *)data = true;
@@ -36,19 +60,41 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY:
-            *(const char **)data = s_dir.c_str();
-            LOGI("env: GET_DIR=%s", s_dir.c_str());
+            *(const char **)data = s_system_dir.c_str();
             return true;
         case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL: return true;
         case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: return true;
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS: return true;
-        case RETRO_ENVIRONMENT_SET_VARIABLES: return true;
-        case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: *(bool *)data = false; return true;
-        case RETRO_ENVIRONMENT_SET_MESSAGE: return true;
-        case RETRO_ENVIRONMENT_GET_LANGUAGE: *(unsigned *)data = 0; return true;
-        case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: *(bool *)data = true; return true;
-        case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS: *(unsigned *)data = 1; return true;
-        case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION: *(unsigned *)data = 1; return true;
+        case RETRO_ENVIRONMENT_SET_VARIABLES: {
+            LOGI("env: SET_VARIABLES");
+            return true;
+        }
+        case RETRO_ENVIRONMENT_GET_VARIABLE: {
+            struct retro_variable *v = (struct retro_variable *)data;
+            const char *val = lookup_var(v->key);
+            if (val) {
+                v->value = val;
+                return true;
+            }
+            return false;
+        }
+        case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
+            *(bool *)data = false;
+            return true;
+        case RETRO_ENVIRONMENT_SET_MESSAGE:
+            return true;
+        case RETRO_ENVIRONMENT_GET_LANGUAGE:
+            *(unsigned *)data = 0;
+            return true;
+        case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
+            *(bool *)data = true;
+            return true;
+        case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS:
+            *(unsigned *)data = 1;
+            return true;
+        case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION:
+            *(unsigned *)data = 1;
+            return true;
         default:
             LOGI("env: unhandled cmd=%u", cmd);
             return false;
@@ -62,7 +108,9 @@ static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) { return u
 
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
-    s_dir = "/data/data/com.ultraman.fe0/files/system";
+    s_system_dir = "/data/data/com.ultraman.fe0/files/system";
+
+    ultraman_set_options(s_resolution, s_vsync, s_audio);
 
     retro_set_environment(env_cb);
     retro_set_video_refresh(ultraman_video_cb);

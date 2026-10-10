@@ -39,6 +39,7 @@ class PlayActivity : AppCompatActivity() {
             return
         }
         EmulatorBridge.nativeInit(this)
+        EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
         loaded = EmulatorBridge.nativeLoadGame(gamePath!!)

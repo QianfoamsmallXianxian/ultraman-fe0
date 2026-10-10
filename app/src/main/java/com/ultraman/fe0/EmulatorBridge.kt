@@ -14,15 +14,15 @@ object EmulatorBridge {
         return try {
             System.loadLibrary("ultraman_bridge")
             loaded = true
-            Log.i("UltramanFE0", "library loaded")
             true
         } catch (t: Throwable) {
-            Log.e("UltramanFE0", "library load failed", t)
+            Log.e("UltramanFE0", "load failed", t)
             false
         }
     }
 
     external fun nativeInit(activity: Activity)
+    external fun nativeSetOptions(resolution: Int, vsync: Boolean, audio: Boolean)
     external fun nativeLoadGame(path: String): Boolean
     external fun nativeStart()
     external fun nativeStop()
