@@ -117,9 +117,22 @@ struct retro_system_info {
     bool need_fullpath;
     bool block_extract;
 };
+struct retro_game_geometry {
+    unsigned base_width;
+    unsigned base_height;
+    unsigned max_width;
+    unsigned max_height;
+    float aspect_ratio;
+};
+
+struct retro_system_timing {
+    double fps;
+    double sample_rate;
+};
+
 struct retro_system_av_info {
-    struct { unsigned base_width; unsigned base_height; unsigned max_width; unsigned max_height; float aspect_ratio; } geometry;
-    struct { double fps; double sample_rate; } timing;
+    struct retro_game_geometry geometry;
+    struct retro_system_timing timing;
 };
 struct retro_variable {
     const char *key;
