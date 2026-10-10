@@ -183,16 +183,25 @@ static bool hw_create_fbo() {
 }
 
 static void hw_context_reset() {
-    LOGI("context_reset");
+    LOGI("context_reset called");
     if (g_dpy == EGL_NO_DISPLAY || g_ctx == EGL_NO_CONTEXT || g_sfc == EGL_NO_SURFACE) {
         LOGE("context_reset: EGL not ready");
         return;
     }
     eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
-    LOGI("context_reset: eglMakeCurrent ok");
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) LOGW("pre-reset glGetError: 0x%x", err);
+
     g_hw_ready = false;
     hw_create_fbo();
+
+    if (g_hw_fbo) {
+        glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
+        GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        LOGI("context_reset: FBO=%u status=0x%x", g_hw_fbo, st);
+    }
     gl_state_reset();
+    LOGI("context_reset done: hw_ready=%d fbo=%u", g_hw_ready, g_hw_fbo);
 }
 
 static void hw_context_destroy() {
@@ -207,6 +216,9 @@ static uintptr_t hw_get_current_fbo() {
 
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
+    static std::atomic<int> s_proc_count{0};
+    int pc = s_proc_count.fetch_add(1) + 1;
+
     void* p = (void*)eglGetProcAddress(sym);
     if (!p) {
         if (!g_gles_lib) {
@@ -217,6 +229,10 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!p) {
         static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
+    }
+
+    if (pc <= 20 || pc % 50 == 0) {
+        LOGI("proc[%d] %s -> %p", pc, sym, p);
     }
     return (retro_proc_address_t)p;
 }
@@ -252,54 +268,49 @@ void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
 
 static std::atomic<int> g_cb_count{0};
 void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
+    (void)pitch;
     int cn = g_cb_count.fetch_add(1) + 1;
-    if (cn == 1 || cn == 10 || cn == 60) {
-        LOGI("CB_ENTER #%d hw=%d ready=%d fbo=%u data=%p %ux%u",
+    if (cn <= 5 || cn == 30 || cn == 60 || cn == 120) {
+        LOGI("CB #%d hw=%d ready=%d fbo=%u data=%p %ux%u",
              cn, g_hw_mode, g_hw_ready, g_hw_fbo, data, w, h);
     }
+
     std::lock_guard<std::mutex> lk(g_mtx);
-    if (!g_video_ready || g_dpy == EGL_NO_DISPLAY || !g_win) return;
+    if (!g_video_ready || g_dpy == EGL_NO_DISPLAY || !g_win) {
+        if (cn <= 3) LOGE("CB: video not ready");
+        return;
+    }
 
     eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
     int winW = ANativeWindow_getWidth(g_win);
     int winH = ANativeWindow_getHeight(g_win);
 
     if (g_hw_mode) {
-        if (!g_hw_ready || !g_hw_fbo) {
+        if (!g_hw_fbo) {
             if (!g_first_hw_logged) {
-                LOGE("hw mode but FBO not ready, skip");
+                LOGE("CB hw: no FBO");
                 g_first_hw_logged = true;
             }
             return;
         }
-
         glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
         glBlitFramebuffer(
             0, g_hw_h, g_hw_w, 0,
             0, 0, winW, winH,
             GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         eglSwapBuffers(g_dpy, g_sfc);
 
         g_hw_frames++;
-        if (g_hw_frames == 1 || g_hw_frames == 60 || g_hw_frames == 300) {
+        if (g_hw_frames <= 3 || g_hw_frames == 30 || g_hw_frames == 60 || g_hw_frames == 120) {
             LOGI("hw frame #%d src=%dx%d dst=%dx%d",
                  g_hw_frames, g_hw_w, g_hw_h, winW, winH);
         }
         return;
     }
 
-    if (!data) {
-        if (!g_first_sw_logged) {
-            LOGI("sw frame skip (null data)");
-            g_first_sw_logged = true;
-        }
-        return;
-    }
-    (void)pitch;
+    if (!data) return;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);

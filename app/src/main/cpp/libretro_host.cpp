@@ -90,7 +90,7 @@ static bool env_cb(unsigned cmd, void *data) {
             LOGI("env PIXEL_FORMAT=%d", *(int*)data);
             return true;
         case RETRO_ENVIRONMENT_GET_CAN_DUPE:
-            *(bool *)data = true;
+            *(bool *)data = false;
             return true;
         case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
@@ -169,6 +169,30 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
             *(unsigned *)data = RETRO_HW_CONTEXT_OPENGL_ES3;
             return true;
+        case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE:
+            if (data) *(int *)data = 3;
+            return true;
+        case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
+            *(bool *)data = false;
+            return true;
+        case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
+            *(float *)data = 60.0f;
+            return true;
+        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+            LOGW("GET_HW_RENDER_INTERFACE: no interface (using callback mode)");
+            return false;
+        case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
+            LOGI("SET_SYSTEM_AV_INFO");
+            return true;
+        case RETRO_ENVIRONMENT_SET_GEOMETRY:
+            LOGI("SET_GEOMETRY");
+            return true;
+        case RETRO_ENVIRONMENT_SET_ROTATION:
+            LOGI("SET_ROTATION");
+            return true;
+        case RETRO_ENVIRONMENT_GET_OVERSCAN:
+            *(bool *)data = false;
+            return true;
         default:
             LOGI("env unhandled=%u", cmd);
             return false;
@@ -242,7 +266,8 @@ void ultraman_start_loop() {
         while (s_run.load()) {
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
-            if (f == 1 || f == 10 || f == 60 || f == 300) LOGI("frame %d", f);
+            if (f <= 10 || f == 30 || f == 60 || f == 120 || f == 300 || f == 600)
+                LOGI("frame %d", f);
         }
         LOGI("loop thread ended");
     });
