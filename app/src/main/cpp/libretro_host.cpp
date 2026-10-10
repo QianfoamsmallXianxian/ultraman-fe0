@@ -16,16 +16,19 @@ extern int16_t ultraman_input_state_cb(unsigned, unsigned, unsigned, unsigned);
 extern void ultraman_video_set_geometry(unsigned, unsigned, double);
 extern void ultraman_video_start();
 extern void ultraman_video_stop();
+extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
+extern struct retro_hw_render_callback* ultraman_get_hw_cb();
 static std::atomic<bool> s_run{false};
 static std::atomic<bool> s_loaded{false};
 static std::thread s_thread;
 static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
 static std::map<std::string, std::string> s_vars;
-static const char *resolution_for(int mult) {
-    switch (mult) {
+static bool s_hw_render = false;
+static const char *resolution_for(int m) {
+    switch (m) {
         case 1: return "480x272";
         case 2: return "960x544";
         case 3: return "1440x816";
@@ -41,18 +44,16 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_backend"] = "Auto";
     s_vars["ppsspp_software_rendering"] = "disabled";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
-    s_vars["ppsspp_skip_buffer_effects"] = "disabled";
-    s_vars["ppsspp_frame_duplication"] = "disabled";
     s_vars["ppsspp_rendering_mode"] = "buffered";
     s_vars["ppsspp_language"] = "Simplified Chinese";
     s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
-    LOGI("set_options: res=%d(%s) vsync=%d audio=%d", r, resolution_for(r), v, a);
+    LOGI("set_options res=%d(%s) vsync=%d audio=%d", r, resolution_for(r), v, a);
 }
 static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
     if (it != s_vars.end()) {
-        LOGI("GET_VARIABLE %s -> %s", key, it->second.c_str());
+        LOGI("GET_VAR %s -> %s", key, it->second.c_str());
         return it->second.c_str();
     }
     return nullptr;
@@ -60,7 +61,7 @@ static const char *lookup_var(const char *key) {
 static bool env_cb(unsigned cmd, void *data) {
     switch (cmd) {
         case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
-            LOGI("env: PIXEL_FORMAT=%d", *(int*)data);
+            LOGI("env PIXEL_FORMAT=%d", *(int*)data);
             return true;
         case RETRO_ENVIRONMENT_GET_CAN_DUPE:
             *(bool *)data = true;
@@ -75,27 +76,52 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
             return true;
         case RETRO_ENVIRONMENT_SET_VARIABLES: {
-            LOGI("===== CORE VARIABLES START =====");
-            const struct retro_variable *vars = (const struct retro_variable *)data;
-            while (vars && vars->key) {
-                LOGI("VAR: %s = %s", vars->key, vars->value ? vars->value : "(null)");
-                vars++;
+            LOGI("=== CORE VARIABLES ===");
+            const struct retro_variable *v = (const struct retro_variable *)data;
+            while (v && v->key) {
+                LOGI("VAR %s = %s", v->key, v->value ? v->value : "(null)");
+                v++;
             }
-            LOGI("===== CORE VARIABLES END =====");
+            LOGI("=== END ===");
             return true;
         }
         case RETRO_ENVIRONMENT_GET_VARIABLE: {
             struct retro_variable *v = (struct retro_variable *)data;
             const char *val = lookup_var(v->key);
             if (val) { v->value = val; return true; }
-            LOGI("GET_VARIABLE %s -> (not set)", v->key);
             return false;
         }
         case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
             *(bool *)data = false;
             return true;
-        case RETRO_ENVIRONMENT_SET_HW_RENDER:
-            LOGI("env: SET_HW_RENDER requested");
+        case RETRO_ENVIRONMENT_SET_HW_RENDER: {
+            struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
+            LOGI("SET_HW_RENDER type=%d", cb->context_type);
+            if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES2 ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
+                struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
+                cb->context_reset = ours->context_reset;
+                cb->context_destroy = ours->context_destroy;
+                cb->get_current_framebuffer = ours->get_current_framebuffer;
+                cb->get_proc_address = ours->get_proc_address;
+                cb->depth = ours->depth;
+                cb->stencil = ours->stencil;
+                cb->bottom_left_origin = ours->bottom_left_origin;
+                cb->version_major = ours->version_major;
+                cb->version_minor = ours->version_minor;
+                cb->cache_context = ours->cache_context;
+                cb->debug_context = ours->debug_context;
+                s_hw_render = true;
+                LOGI("HW render accepted");
+                return true;
+            }
+            LOGE("HW type %d unsupported", cb->context_type);
+            return false;
+        }
+        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+            LOGI("GET_HW_RENDER_INTERFACE (false)");
             return false;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
@@ -103,8 +129,11 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS: *(bool *)data = true; return true;
         case RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS: *(unsigned *)data = 1; return true;
         case RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION: *(unsigned *)data = 1; return true;
+        case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+            *(unsigned *)data = RETRO_HW_CONTEXT_OPENGL_ES3;
+            return true;
         default:
-            LOGI("env: unhandled cmd=%u", cmd);
+            LOGI("env unhandled=%u", cmd);
             return false;
     }
 }
@@ -131,10 +160,12 @@ bool ultraman_load_game(const std::string &path) {
          info.library_version ? info.library_version : "?");
     struct retro_system_av_info av{};
     retro_get_system_av_info(&av);
-    LOGI("av: %ux%u @%.2f / %.0f",
+    LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
     ultraman_video_set_geometry(av.geometry.base_width, av.geometry.base_height, av.timing.fps);
+    ultraman_video_set_hw(s_hw_render, 1920, 1088);
+    ultraman_video_start();
     struct retro_game_info game{};
     game.path = path.c_str();
     game.data = nullptr;
@@ -144,8 +175,7 @@ bool ultraman_load_game(const std::string &path) {
         LOGE("retro_load_game FAILED");
         return false;
     }
-    LOGI("retro_load_game ok");
-    ultraman_video_start();
+    LOGI("retro_load_game ok hw=%d", s_hw_render);
     ultraman_audio_start(av.timing.sample_rate);
     s_loaded.store(true);
     return true;
