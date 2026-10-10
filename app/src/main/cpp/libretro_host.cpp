@@ -4,8 +4,9 @@
 #include <string>
 #include <cstdio>
 #include "libretro.h"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
+#include "ulog.h"
+#define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
+#define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
 
 extern void ultraman_video_cb(const void *, unsigned, unsigned, size_t);
 extern void ultraman_audio_sample_cb(int16_t, int16_t);
