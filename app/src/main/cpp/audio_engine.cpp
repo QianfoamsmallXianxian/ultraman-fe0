@@ -3,7 +3,8 @@
 #include <android/log.h>
 #include <atomic>
 #include <cstring>
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
+#include "ulog.h"
+#define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
 static SLObjectItf g_eng_obj = nullptr;
 static SLEngineItf g_eng = nullptr;
 static SLObjectItf g_out_obj = nullptr;
@@ -51,7 +52,9 @@ void ultraman_audio_stop() {
     if (g_ply_obj) (*g_ply_obj)->Destroy(g_ply_obj);
     if (g_out_obj) (*g_out_obj)->Destroy(g_out_obj);
     if (g_eng_obj) (*g_eng_obj)->Destroy(g_eng_obj);
-    g_ply_obj = nullptr; g_out_obj = nullptr; g_eng_obj = nullptr;
+    g_ply_obj = nullptr;
+    g_out_obj = nullptr;
+    g_eng_obj = nullptr;
 }
 void ultraman_audio_sample_cb(int16_t, int16_t) {}
 size_t ultraman_audio_batch_cb(const int16_t *, size_t f) { return f; }

@@ -61,7 +61,6 @@ extern "C" {
 #define RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS 42
 #define RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE 43
 #define RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS 44
-#define RETRO_ENVIRONMENT_SET_HW_SHARED_CONTEXT 44
 #define RETRO_ENVIRONMENT_GET_VFS_INTERFACE 45
 #define RETRO_ENVIRONMENT_GET_LED_INTERFACE 46
 #define RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE 47
@@ -79,11 +78,6 @@ extern "C" {
 #define RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION 59
 #define RETRO_ENVIRONMENT_SET_MESSAGE_EXT 60
 #define RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS 61
-#define RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK 62
-#define RETRO_ENVIRONMENT_SET_MINIMUM_AUDIO_LATENCY 63
-#define RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE 64
-#define RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE 65
-#define RETRO_ENVIRONMENT_GET_GAME_INFO_EXT 66
 #define RETRO_PIXEL_FORMAT_0RGB1555 0
 #define RETRO_PIXEL_FORMAT_XRGB8888 1
 #define RETRO_PIXEL_FORMAT_RGB565 2
@@ -109,6 +103,11 @@ struct retro_system_av_info {
     struct { unsigned base_width; unsigned base_height; unsigned max_width; unsigned max_height; float aspect_ratio; } geometry;
     struct { double fps; double sample_rate; } timing;
 };
+struct retro_variable {
+    const char *key;
+    const char *value;
+};
+bool retro_load_game(const struct retro_game_info *game);
 void retro_init(void);
 void retro_deinit(void);
 unsigned retro_api_version(void);
@@ -120,7 +119,6 @@ void retro_set_audio_sample(retro_audio_sample_t cb);
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb);
 void retro_set_input_poll(retro_input_poll_t cb);
 void retro_set_input_state(retro_input_state_t cb);
-bool retro_load_game(const struct retro_game_info *game);
 void retro_unload_game(void);
 void retro_run(void);
 void retro_reset(void);

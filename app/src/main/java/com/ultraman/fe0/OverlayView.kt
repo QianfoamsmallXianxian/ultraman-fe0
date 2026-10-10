@@ -12,7 +12,6 @@ import kotlin.math.min
 class OverlayView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
-
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val held = HashMap<Int, Int>()
 
@@ -21,15 +20,12 @@ class OverlayView @JvmOverloads constructor(
     private val buttons = listOf(
         Btn("L", 0.08f, 0.10f, 0.055f, EmulatorBridge.BTN_L),
         Btn("R", 0.92f, 0.10f, 0.055f, EmulatorBridge.BTN_R),
-
         Btn("^", 0.12f, 0.62f, 0.055f, EmulatorBridge.BTN_UP),
         Btn("v", 0.12f, 0.86f, 0.055f, EmulatorBridge.BTN_DOWN),
         Btn("<", 0.05f, 0.74f, 0.055f, EmulatorBridge.BTN_LEFT),
         Btn(">", 0.19f, 0.74f, 0.055f, EmulatorBridge.BTN_RIGHT),
-
         Btn("SEL", 0.42f, 0.90f, 0.045f, EmulatorBridge.BTN_SELECT),
         Btn("STA", 0.58f, 0.90f, 0.045f, EmulatorBridge.BTN_START),
-
         Btn("T", 0.82f, 0.56f, 0.055f, EmulatorBridge.BTN_Y),
         Btn("X", 0.74f, 0.72f, 0.055f, EmulatorBridge.BTN_X),
         Btn("O", 0.90f, 0.72f, 0.055f, EmulatorBridge.BTN_B),
@@ -40,8 +36,6 @@ class OverlayView @JvmOverloads constructor(
         paint.textAlign = Paint.Align.CENTER
         isFocusable = true
     }
-
-    private fun radius(): Float = min(width, height).toFloat() * 0.055f
 
     private fun px(b: Btn): Float = b.nx * width
     private fun py(b: Btn): Float = b.ny * height
@@ -104,16 +98,13 @@ class OverlayView @JvmOverloads constructor(
             val cy = py(b)
             val r = pr(b)
             val pressed = held.values.contains(b.id)
-
             paint.style = Paint.Style.FILL
             paint.color = if (pressed) 0x99FFD24A.toInt() else 0x44000000
             canvas.drawCircle(cx, cy, r, paint)
-
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 4f
             paint.color = if (pressed) 0xFFFFD24A.toInt() else 0xAA4A8CFF.toInt()
             canvas.drawCircle(cx, cy, r, paint)
-
             paint.style = Paint.Style.FILL
             paint.color = Color.WHITE
             paint.textSize = r * 0.9f

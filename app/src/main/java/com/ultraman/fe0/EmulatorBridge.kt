@@ -5,7 +5,6 @@ import android.util.Log
 import android.view.Surface
 
 object EmulatorBridge {
-
     @Volatile
     private var loaded = false
 

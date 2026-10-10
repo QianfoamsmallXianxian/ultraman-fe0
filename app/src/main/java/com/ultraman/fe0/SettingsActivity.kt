@@ -1,4 +1,5 @@
 package com.ultraman.fe0
+
 import android.os.Bundle
 import android.widget.Button
 import android.widget.SeekBar
@@ -7,13 +8,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 
 class SettingsActivity : AppCompatActivity() {
-
     private val cfg by lazy { ConfigManager(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-
         val sbRes = findViewById<SeekBar>(R.id.sbRes)
         val tvRes = findViewById<TextView>(R.id.tvRes)
         val swFull = findViewById<SwitchCompat>(R.id.swFullscreen)
@@ -35,13 +34,10 @@ class SettingsActivity : AppCompatActivity() {
 
         swFull.isChecked = cfg.fullscreen
         swFull.setOnCheckedChangeListener { _, v -> cfg.fullscreen = v }
-
         swVsync.isChecked = cfg.vsync
         swVsync.setOnCheckedChangeListener { _, v -> cfg.vsync = v }
-
         swAudio.isChecked = cfg.audioEnabled
         swAudio.setOnCheckedChangeListener { _, v -> cfg.audioEnabled = v }
-
         btnBack.setOnClickListener { finish() }
     }
 }
