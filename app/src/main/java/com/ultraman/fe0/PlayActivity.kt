@@ -54,7 +54,19 @@ class PlayActivity : AppCompatActivity() {
 
         if (!EmulatorBridge.ensureLoaded()) { finish(); return }
         EmulatorBridge.nativeInit(this)
-        EmulatorBridge.nativeSetBackend(cfg.backend)
+
+        val effectiveBackend = if (cfg.backend == ConfigManager.BACKEND_VULKAN) {
+            Toast.makeText(
+                this,
+                "Vulkan 渲染器暂不可用，已自动使用 OpenGL",
+                Toast.LENGTH_LONG
+            ).show()
+            ConfigManager.BACKEND_OPENGL
+        } else {
+            cfg.backend
+        }
+        cfg.backend = effectiveBackend
+        EmulatorBridge.nativeSetBackend(effectiveBackend)
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 

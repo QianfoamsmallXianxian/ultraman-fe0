@@ -50,14 +50,23 @@ static const char *resolution_for(int m) {
 
 void ultraman_set_backend(int b) {
     s_backend = b;
-    LOGI("set_backend=%d", b);
+    if (b == 0) {
+        s_vars["ppsspp_backend"] = "OpenGL";
+    } else if (b == 1) {
+        s_vars["ppsspp_backend"] = "Vulkan";
+    } else {
+        s_vars["ppsspp_backend"] = "OpenGL";
+    }
+    LOGI("set_backend=%d ppsspp_backend=%s", b, s_vars["ppsspp_backend"].c_str());
 }
 
 void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_internal_resolution"] = resolution_for(r);
     s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
     s_vars["ppsspp_audio_latency"] = a ? "low" : "high";
-    s_vars["ppsspp_backend"] = "Auto";
+    if (s_vars.find("ppsspp_backend") == s_vars.end()) {
+        s_vars["ppsspp_backend"] = "OpenGL";
+    }
     s_vars["ppsspp_software_rendering"] = "disabled";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
     s_vars["ppsspp_rendering_mode"] = "buffered";
@@ -114,8 +123,9 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
+
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGE("Vulkan refused");
+                LOGW("Vulkan requested: frontend has no Vulkan impl, refusing");
                 return false;
             }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
@@ -141,7 +151,7 @@ static bool env_cb(unsigned cmd, void *data) {
                 if (ultraman_video_is_ready()) {
                     ultraman_video_prepare_fbo();
                 } else {
-                    LOGE("SET_HW_RENDER: video not ready yet");
+                    LOGE("SET_HW_RENDER: video not ready");
                 }
                 return true;
             }

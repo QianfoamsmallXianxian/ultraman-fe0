@@ -2,8 +2,11 @@ package com.ultraman.fe0
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
@@ -14,15 +17,28 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+
         val sbRes = findViewById<SeekBar>(R.id.sbRes)
         val tvRes = findViewById<TextView>(R.id.tvRes)
         val swFull = findViewById<SwitchCompat>(R.id.swFullscreen)
         val swVsync = findViewById<SwitchCompat>(R.id.swVsync)
         val swAudio = findViewById<SwitchCompat>(R.id.swAudio)
+        val spBackend = findViewById<Spinner>(R.id.spBackend)
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
-        cfg.backend = ConfigManager.BACKEND_OPENGL
+        spBackend.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("OpenGL (推荐)", "Vulkan (实验·暂不可用)")
+        )
+        spBackend.setSelection(cfg.backend.coerceIn(0, 1))
+        spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                cfg.backend = pos
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
 
         sbRes.max = 4
         sbRes.progress = cfg.resolution - 1
