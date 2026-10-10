@@ -282,6 +282,14 @@ bool ultraman_load_game(const std::string &path) {
     fclose(probe);
     LOGI("load_game: fopen ok");
 
+    struct retro_system_info info{};
+    retro_get_system_info(&info);
+    LOGI("core: %s %s", info.library_name ? info.library_name : "?",
+         info.library_version ? info.library_version : "?");
+
+    struct retro_system_av_info av{};
+    retro_get_system_av_info(&av);
+
     LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
