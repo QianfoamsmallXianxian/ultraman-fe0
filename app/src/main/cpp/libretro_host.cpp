@@ -23,6 +23,7 @@ extern void ultraman_video_stop();
 extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_video_present();
 extern bool ultraman_video_is_ready();
+extern bool ultraman_video_create_fbo_now();
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
@@ -107,21 +108,28 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
         case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
             struct retro_system_av_info *info = (struct retro_system_av_info *)data;
-            int w = (int)info->geometry.base_width;
-            int h = (int)info->geometry.base_height;
-            LOGI("SET_SYSTEM_AV_INFO base=%dx%d fps=%.2f", w, h, info->timing.fps);
-            if (w > 0 && h > 0) {
-                int mult = s_render_w / 480;
-                if (mult < 1) mult = 1;
-                if (mult > 8) mult = 8;
-                int sw = w * mult;
-                int sh = h * mult;
-                LOGI("av_info deferred %dx%d scale=%d", sw, sh, mult);
-                s_render_w = sw;
-                s_render_h = sh;
-                extern void ultraman_video_set_hw_size(int, int);
-                ultraman_video_set_hw_size(sw, sh);
+            if (!info) {
+                LOGW("SET_SYSTEM_AV_INFO: null data");
+                return true;
             }
+            unsigned w = info->geometry.base_width;
+            unsigned h = info->geometry.base_height;
+            double fps = info->timing.fps;
+            if (w == 0 || h == 0 || w > 4096 || h > 4096) {
+                LOGW("SET_SYSTEM_AV_INFO: ignoring invalid %ux%u fps=%.2f", w, h, fps);
+                return true;
+            }
+            LOGI("SET_SYSTEM_AV_INFO valid %ux%u fps=%.2f", w, h, fps);
+            int mult = s_render_w / 480;
+            if (mult < 1) mult = 1;
+            if (mult > 8) mult = 8;
+            int sw = (int)w * mult;
+            int sh = (int)h * mult;
+            LOGI("av_info apply scale=%d -> %dx%d", mult, sw, sh);
+            s_render_w = sw;
+            s_render_h = sh;
+            extern void ultraman_video_set_hw_size(int, int);
+            ultraman_video_set_hw_size(sw, sh);
             return true;
         }
         case RETRO_ENVIRONMENT_SET_GEOMETRY: {
@@ -173,11 +181,18 @@ static bool env_cb(unsigned cmd, void *data) {
                 s_hw_render = true;
                 LOGI("HW accepted type=%d ver=%u.%u", requested,
                      cb->version_major, cb->version_minor);
-                if (!ultraman_video_is_ready()) {
-                    s_deferred_reset_cb = cb->context_reset;
-                    LOGW("EGL not ready: defer context_reset");
+
+                if (ultraman_video_is_ready()) {
+                    LOGI("EGL ready: creating FBO before core checks");
+                    if (!ultraman_video_create_fbo_now()) {
+                        LOGE("create_fbo_now failed, core will refuse hw render");
+                        s_hw_render = false;
+                        return false;
+                    }
+                    LOGI("FBO %u ready for core", 0);
                 } else {
-                    LOGI("EGL ready: core will call context_reset");
+                    s_deferred_reset_cb = cb->context_reset;
+                    LOGW("EGL not ready: defer");
                 }
                 return true;
             }

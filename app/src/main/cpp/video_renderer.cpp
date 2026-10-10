@@ -534,3 +534,33 @@ void ultraman_video_set_hw_size(int w, int h) {
     g_pending_h = h;
     g_pending_rebuild.store(true);
 }
+
+bool ultraman_video_create_fbo_now() {
+    GLLOCK;
+    if (g_hw_fbo) {
+        LOGI("create_fbo_now: already exists %u", g_hw_fbo);
+        return true;
+    }
+    if (!g_video_ready.load()) {
+        LOGE("create_fbo_now: video not ready");
+        return false;
+    }
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) {
+        LOGE("create_fbo_now: EGL state invalid");
+        return false;
+    }
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+        LOGE("create_fbo_now: eglMakeCurrent failed 0x%x", eglGetError());
+        return false;
+    }
+    g_current_sfc = g_sfc;
+    LOGI("create_fbo_now: creating %dx%d", g_hw_w, g_hw_h);
+    if (!hw_create_fbo(g_hw_w, g_hw_h)) {
+        LOGE("create_fbo_now: hw_create_fbo failed");
+        return false;
+    }
+    g_hw_ready.store(true);
+    gl_state_reset();
+    LOGI("create_fbo_now: OK fbo=%u", g_hw_fbo);
+    return true;
+}
