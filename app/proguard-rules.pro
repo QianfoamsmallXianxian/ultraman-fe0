@@ -1,0 +1,2 @@
+-keep class com.ultraman.fe0.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
