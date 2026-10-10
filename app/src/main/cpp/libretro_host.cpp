@@ -194,9 +194,6 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
             *(unsigned *)data = 1;
             return true;
-        case 59:
-            *(unsigned *)data = 1;
-            return true;
         case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
             return false;
         default:
