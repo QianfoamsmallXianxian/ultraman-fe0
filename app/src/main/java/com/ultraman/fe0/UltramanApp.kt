@@ -1,13 +1,12 @@
 package com.ultraman.fe0
 
 import android.app.Application
-import java.io.File
 
 class UltramanApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        listOf("system", "saves", "config").forEach { File(filesDir, it).mkdirs() }
+        CrashLogger.install(this)
     }
     companion object {
         lateinit var instance: UltramanApp
