@@ -15,6 +15,7 @@
 
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
+#define LOGW(...) ulog_write(ANDROID_LOG_WARN,  "UltramanFE0", __VA_ARGS__)
 
 static ANativeWindow* g_win = nullptr;
 static EGLDisplay     g_dpy = EGL_NO_DISPLAY;

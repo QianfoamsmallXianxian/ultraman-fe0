@@ -159,6 +159,7 @@ static bool env_cb(unsigned cmd, void *data) {
             return false;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+            LOGW("GET_HW_RENDER_INTERFACE: no interface");
             return false;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
@@ -178,9 +179,6 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE:
             *(float *)data = 60.0f;
             return true;
-        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
-            LOGW("GET_HW_RENDER_INTERFACE: no interface (using callback mode)");
-            return false;
         case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
             LOGI("SET_SYSTEM_AV_INFO");
             return true;
