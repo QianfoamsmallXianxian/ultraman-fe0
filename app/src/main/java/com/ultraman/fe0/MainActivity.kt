@@ -39,9 +39,7 @@ class MainActivity : AppCompatActivity() {
                 if (idx >= 0 && c.moveToFirst()) name = c.getString(idx) ?: ""
             }
         } catch (_: Exception) {}
-        if (name.isEmpty()) {
-            name = uri.lastPathSegment?.let { Uri.decode(it) } ?: "game.iso"
-        }
+        if (name.isEmpty()) name = uri.lastPathSegment?.let { Uri.decode(it) } ?: "game.iso"
         return name
     }
 

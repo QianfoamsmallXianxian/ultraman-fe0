@@ -3,11 +3,15 @@
 #include <thread>
 #include <string>
 #include <cstring>
+#include <cstdio>
 #include <map>
+#include <sys/stat.h>
 #include "libretro.h"
 #include "ulog.h"
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
+#define LOGW(...) ulog_write(ANDROID_LOG_WARN, "UltramanFE0", __VA_ARGS__)
+
 extern void ultraman_video_cb(const void *, unsigned, unsigned, size_t);
 extern void ultraman_audio_sample_cb(int16_t, int16_t);
 extern size_t ultraman_audio_batch_cb(const int16_t *, size_t);
@@ -20,6 +24,7 @@ extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
+
 static std::atomic<bool> s_run{false};
 static std::atomic<bool> s_loaded{false};
 static std::thread s_thread;
@@ -27,6 +32,8 @@ static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
 static std::map<std::string, std::string> s_vars;
 static bool s_hw_render = false;
+static int s_backend = 0;
+
 static const char *resolution_for(int m) {
     switch (m) {
         case 1: return "480x272";
@@ -37,6 +44,12 @@ static const char *resolution_for(int m) {
         default: return "960x544";
     }
 }
+
+void ultraman_set_backend(int b) {
+    s_backend = b;
+    LOGI("set_backend=%d", b);
+}
+
 void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_internal_resolution"] = resolution_for(r);
     s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
@@ -49,6 +62,7 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
     LOGI("set_options res=%d(%s) vsync=%d audio=%d", r, resolution_for(r), v, a);
 }
+
 static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
@@ -96,7 +110,11 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
-            LOGI("SET_HW_RENDER type=%d", cb->context_type);
+            LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
+            if (s_backend == 2) {
+                LOGW("software mode, refusing HW");
+                return false;
+            }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES2 ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
@@ -121,7 +139,6 @@ static bool env_cb(unsigned cmd, void *data) {
             return false;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
-            LOGI("GET_HW_RENDER_INTERFACE (false)");
             return false;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
@@ -146,6 +163,7 @@ static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
     s_system_dir = "/data/data/com.ultraman.fe0/files/system";
+    mkdir(s_system_dir.c_str(), 0777);
     retro_set_environment(env_cb);
     retro_set_video_refresh(ultraman_video_cb);
     retro_set_audio_sample(on_a);
@@ -171,10 +189,7 @@ bool ultraman_load_game(const std::string &path) {
     game.data = nullptr;
     game.size = 0;
     game.meta = nullptr;
-    if (!retro_load_game(&game)) {
-        LOGE("retro_load_game FAILED");
-        return false;
-    }
+    if (!retro_load_game(&game)) { LOGE("retro_load_game FAILED"); return false; }
     LOGI("retro_load_game ok hw=%d", s_hw_render);
     ultraman_audio_start(av.timing.sample_rate);
     s_loaded.store(true);
@@ -202,10 +217,6 @@ void ultraman_stop_loop() {
         ultraman_audio_stop();
     }
 }
-
-#include <cstdio>
-#include <sys/stat.h>
-
 bool ultraman_save_state(const char *path) {
     size_t size = retro_serialize_size();
     if (size == 0) { LOGE("serialize_size=0"); return false; }
@@ -217,10 +228,9 @@ bool ultraman_save_state(const char *path) {
     size_t w = fwrite(buf, 1, size, f);
     fclose(f);
     free(buf);
-    LOGI("saved %zu bytes to %s", w, path);
+    LOGI("state saved %zu -> %s", w, path);
     return w == size;
 }
-
 bool ultraman_load_state(const char *path) {
     FILE *f = fopen(path, "rb");
     if (!f) { LOGE("no file: %s", path); return false; }
@@ -234,10 +244,9 @@ bool ultraman_load_state(const char *path) {
     fclose(f);
     bool ok = retro_unserialize(buf, r);
     free(buf);
-    LOGI("loaded %zu bytes from %s -> %d", r, path, ok);
+    LOGI("state load %zu from %s -> %d", r, path, ok);
     return ok;
 }
-
 bool ultraman_save_sram(const char *path) {
     void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
     size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
@@ -246,18 +255,17 @@ bool ultraman_save_sram(const char *path) {
     if (!f) return false;
     size_t w = fwrite(data, 1, size, f);
     fclose(f);
-    LOGI("sram saved %zu bytes to %s", w, path);
+    LOGI("sram saved %zu -> %s", w, path);
     return w == size;
 }
-
 bool ultraman_load_sram(const char *path) {
     void *data = retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
     size_t size = retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
     if (!data || size == 0) { LOGE("no sram"); return false; }
     FILE *f = fopen(path, "rb");
-    if (!f) { LOGI("no sram file, skip: %s", path); return false; }
+    if (!f) return false;
     size_t r = fread(data, 1, size, f);
     fclose(f);
-    LOGI("sram loaded %zu bytes from %s", r, path);
+    LOGI("sram load %zu from %s", r, path);
     return r > 0;
 }

@@ -38,23 +38,19 @@ class ButtonConfigManager(ctx: Context) {
             val s = sp.getString("btn_$i", null) ?: continue
             val p = s.split("|")
             if (p.size == 6) {
-                list.add(ButtonDef(
-                    p[0],
+                list.add(ButtonDef(p[0],
                     p[1].toFloatOrNull() ?: 0f,
                     p[2].toFloatOrNull() ?: 0f,
                     p[3].toFloatOrNull() ?: 0.05f,
                     p[4].toFloatOrNull() ?: 0.5f,
-                    p[5].toIntOrNull() ?: 0
-                ))
+                    p[5].toIntOrNull() ?: 0))
             } else if (p.size == 5) {
-                list.add(ButtonDef(
-                    p[0],
+                list.add(ButtonDef(p[0],
                     p[1].toFloatOrNull() ?: 0f,
                     p[2].toFloatOrNull() ?: 0f,
                     p[3].toFloatOrNull() ?: 0.05f,
                     0.5f,
-                    p[4].toIntOrNull() ?: 0
-                ))
+                    p[4].toIntOrNull() ?: 0))
             }
         }
         return if (list.size == DEFAULT.size) list else DEFAULT.toMutableList()
@@ -68,7 +64,5 @@ class ButtonConfigManager(ctx: Context) {
         e.apply()
     }
 
-    fun reset() {
-        sp.edit().clear().apply()
-    }
+    fun reset() { sp.edit().clear().apply() }
 }

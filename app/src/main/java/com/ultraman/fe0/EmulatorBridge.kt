@@ -5,8 +5,7 @@ import android.util.Log
 import android.view.Surface
 
 object EmulatorBridge {
-    @Volatile
-    private var loaded = false
+    @Volatile private var loaded = false
 
     fun ensureLoaded(): Boolean {
         if (loaded) return true
@@ -15,12 +14,13 @@ object EmulatorBridge {
             loaded = true
             true
         } catch (t: Throwable) {
-            Log.e("UltramanFE0", "load failed", t)
+            Log.e("UltramanFE0", "load fail", t)
             false
         }
     }
 
     external fun nativeInit(activity: Activity)
+    external fun nativeSetBackend(backend: Int)
     external fun nativeSetOptions(resolution: Int, vsync: Boolean, audio: Boolean)
     external fun nativeLoadGame(path: String): Boolean
     external fun nativeStart()
@@ -28,12 +28,12 @@ object EmulatorBridge {
     external fun nativeSetSurface(surface: Surface?)
     external fun nativeSetAudioEnabled(enabled: Boolean)
     external fun nativeKey(port: Int, id: Int, down: Boolean)
+    external fun nativeReset()
+    external fun nativeVersion(): String
     external fun nativeSaveState(path: String): Boolean
     external fun nativeLoadState(path: String): Boolean
     external fun nativeSaveSram(path: String): Boolean
     external fun nativeLoadSram(path: String): Boolean
-    external fun nativeReset()
-    external fun nativeVersion(): String
 
     const val BTN_B = 0
     const val BTN_Y = 1

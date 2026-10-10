@@ -44,7 +44,7 @@ static GLuint sh(GLenum t, const char *s) {
     glCompileShader(x);
     GLint ok = 0;
     glGetShaderiv(x, GL_COMPILE_STATUS, &ok);
-    if (!ok) { GLchar l[512]; glGetShaderInfoLog(x,512,nullptr,l); LOGE("shader fail: %s", l); }
+    if (!ok) { GLchar l[512]; glGetShaderInfoLog(x,512,nullptr,l); LOGE("shader: %s", l); }
     return x;
 }
 static void setup() {
@@ -56,7 +56,7 @@ static void setup() {
     glLinkProgram(p);
     GLint ok = 0;
     glGetProgramiv(p, GL_LINK_STATUS, &ok);
-    if (!ok) { GLchar l[512]; glGetProgramInfoLog(p,512,nullptr,l); LOGE("link fail: %s", l); }
+    if (!ok) { GLchar l[512]; glGetProgramInfoLog(p,512,nullptr,l); LOGE("link: %s", l); }
     glUseProgram(p);
     g_prog = p;
     g_a_pos = glGetAttribLocation(p, "a_pos");
@@ -84,14 +84,11 @@ static void hw_make_fbo() {
     glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_hw_tex, 0);
     GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (st != GL_FRAMEBUFFER_COMPLETE) LOGE("FBO incomplete 0x%x", st);
-    else LOGI("hw FBO %u ready %dx%d", g_hw_fbo, g_hw_w, g_hw_h);
+    if (st != GL_FRAMEBUFFER_COMPLETE) LOGE("FBO 0x%x", st);
+    else LOGI("FBO %u %dx%d", g_hw_fbo, g_hw_w, g_hw_h);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-static void hw_reset() {
-    LOGI("hw context_reset");
-    hw_make_fbo();
-}
+static void hw_reset() { LOGI("hw context_reset"); hw_make_fbo(); }
 static void hw_destroy() {
     LOGI("hw context_destroy");
     if (g_hw_fbo) { glDeleteFramebuffers(1, &g_hw_fbo); g_hw_fbo = 0; }
@@ -121,7 +118,7 @@ void ultraman_video_set_hw(bool hw, int w, int h) {
     g_hw_mode = hw;
     if (w > 0) g_hw_w = w;
     if (h > 0) g_hw_h = h;
-    LOGI("video mode %s (%dx%d)", hw ? "HW" : "SW", g_hw_w, g_hw_h);
+    LOGI("video mode %s %dx%d", hw ? "HW" : "SW", g_hw_w, g_hw_h);
 }
 void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
     if (w > 0) g_hw_w = w;
@@ -168,10 +165,10 @@ void ultraman_video_cb(const void *data, unsigned w, unsigned h, size_t) {
 }
 void ultraman_video_start() {
     std::lock_guard<std::mutex> lk(g_mtx);
-    if (!g_win) { LOGE("no native window"); return; }
+    if (!g_win) { LOGE("no window"); return; }
     g_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (g_dpy == EGL_NO_DISPLAY) { LOGE("eglGetDisplay fail"); return; }
-    if (!eglInitialize(g_dpy, nullptr, nullptr)) { LOGE("eglInitialize fail"); return; }
+    if (g_dpy == EGL_NO_DISPLAY) { LOGE("no display"); return; }
+    if (!eglInitialize(g_dpy, nullptr, nullptr)) { LOGE("init fail"); return; }
     eglBindAPI(EGL_OPENGL_ES_API);
     EGLint ca[] = {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
@@ -182,16 +179,16 @@ void ultraman_video_start() {
     EGLConfig cfg;
     EGLint n = 0;
     eglChooseConfig(g_dpy, ca, &cfg, 1, &n);
-    if (n == 0) { LOGE("no EGL config"); return; }
+    if (n == 0) { LOGE("no config"); return; }
     g_sfc = eglCreateWindowSurface(g_dpy, cfg, g_win, nullptr);
     if (g_sfc == EGL_NO_SURFACE) { LOGE("no surface"); return; }
     EGLint cta[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
     g_ctx = eglCreateContext(g_dpy, cfg, EGL_NO_CONTEXT, cta);
-    if (g_ctx == EGL_NO_CONTEXT) { LOGE("no context"); return; }
-    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) { LOGE("make current fail"); return; }
+    if (g_ctx == EGL_NO_CONTEXT) { LOGE("no ctx"); return; }
+    if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) { LOGE("no current"); return; }
     setup();
     g_video_ready = true;
-    LOGI("video ready GL=%s", glGetString(GL_VERSION));
+    LOGI("video ready %s", glGetString(GL_VERSION));
 }
 void ultraman_video_stop() {
     std::lock_guard<std::mutex> lk(g_mtx);
@@ -212,10 +209,8 @@ void ultraman_set_surface(JNIEnv *env, jobject s) {
     if (g_win) { ANativeWindow_release(g_win); g_win = nullptr; }
     if (s) {
         g_win = ANativeWindow_fromSurface(env, s);
-        LOGI("surface %p (%dx%d)", g_win,
+        LOGI("surface %p %dx%d", g_win,
              g_win ? ANativeWindow_getWidth(g_win) : 0,
              g_win ? ANativeWindow_getHeight(g_win) : 0);
-    } else {
-        LOGI("surface null");
-    }
+    } else LOGI("surface null");
 }

@@ -67,6 +67,10 @@ extern "C" {
 #define RETRO_PIXEL_FORMAT_0RGB1555 0
 #define RETRO_PIXEL_FORMAT_XRGB8888 1
 #define RETRO_PIXEL_FORMAT_RGB565 2
+#define RETRO_MEMORY_SAVE_RAM 0
+#define RETRO_MEMORY_RTC 1
+#define RETRO_MEMORY_SYSTEM_RAM 2
+#define RETRO_MEMORY_VIDEO_RAM 3
 enum retro_hw_context_type {
     RETRO_HW_CONTEXT_NONE = 0,
     RETRO_HW_CONTEXT_OPENGL = 1,
@@ -74,15 +78,6 @@ enum retro_hw_context_type {
     RETRO_HW_CONTEXT_OPENGL_CORE = 3,
     RETRO_HW_CONTEXT_OPENGL_ES3 = 4,
     RETRO_HW_CONTEXT_VULKAN = 6,
-};
-enum retro_hw_render_interface_type {
-    RETRO_HW_RENDER_INTERFACE_VULKAN = 0,
-    RETRO_HW_RENDER_INTERFACE_D3D9 = 1,
-    RETRO_HW_RENDER_INTERFACE_D3D10 = 2,
-    RETRO_HW_RENDER_INTERFACE_D3D11 = 3,
-    RETRO_HW_RENDER_INTERFACE_D3D12 = 4,
-    RETRO_HW_RENDER_INTERFACE_GSKIT_PS2 = 5,
-    RETRO_HW_RENDER_INTERFACE_DUMMY = 0x7fffffff,
 };
 typedef void (*retro_proc_address_t)(void);
 struct retro_hw_render_callback {
@@ -98,10 +93,6 @@ struct retro_hw_render_callback {
     unsigned version_minor;
     bool cache_context;
     bool debug_context;
-};
-struct retro_hw_render_interface {
-    enum retro_hw_render_interface_type interface_type;
-    unsigned interface_version;
 };
 typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
 typedef void (*retro_audio_sample_t)(int16_t left, int16_t right);
@@ -141,18 +132,14 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb);
 void retro_set_input_poll(retro_input_poll_t cb);
 void retro_set_input_state(retro_input_state_t cb);
 bool retro_load_game(const struct retro_game_info *game);
-#define RETRO_MEMORY_SAVE_RAM 0
-#define RETRO_MEMORY_RTC 1
-#define RETRO_MEMORY_SYSTEM_RAM 2
-#define RETRO_MEMORY_VIDEO_RAM 3
-size_t retro_serialize_size(void);
-bool retro_serialize(void *data, size_t size);
-bool retro_unserialize(const void *data, size_t size);
 void retro_unload_game(void);
 void retro_run(void);
 void retro_reset(void);
 void *retro_get_memory_data(unsigned id);
 size_t retro_get_memory_size(unsigned id);
+size_t retro_serialize_size(void);
+bool retro_serialize(void *data, size_t size);
+bool retro_unserialize(const void *data, size_t size);
 #ifdef __cplusplus
 }
 #endif

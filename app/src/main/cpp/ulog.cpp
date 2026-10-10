@@ -17,7 +17,7 @@ void ulog_init(const char *dir) {
     FILE *f = fopen(path, "a");
     if (f) {
         g_file = f;
-        __android_log_print(ANDROID_LOG_INFO, "UltramanFE0", "ulog file: %s", path);
+        __android_log_print(ANDROID_LOG_INFO, "UltramanFE0", "ulog: %s", path);
     }
 }
 void ulog_write(int prio, const char *tag, const char *fmt, ...) {

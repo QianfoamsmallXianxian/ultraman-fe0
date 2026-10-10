@@ -14,7 +14,6 @@ import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 
 class PlayActivity : AppCompatActivity() {
-
     private lateinit var view: EmulatorView
     private val cfg by lazy { ConfigManager(this) }
     private var gamePath: String? = null
@@ -32,22 +31,17 @@ class PlayActivity : AppCompatActivity() {
         val overlay = OverlayView(this)
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
         val menuBtn = Button(this).apply {
-            text = "菜单"
-            alpha = 0.6f
-            textSize = 12f
+            text = "菜单"; alpha = 0.6f; textSize = 12f
             setBackgroundColor(0xAA000000.toInt())
             setTextColor(0xFFFFFFFF.toInt())
             setOnClickListener { showMenu() }
         }
         val lp = FrameLayout.LayoutParams(160, 90)
-        lp.leftMargin = 30
-        lp.topMargin = 30
+        lp.leftMargin = 30; lp.topMargin = 30
         root.addView(menuBtn, lp)
         setContentView(root)
 
-        if (cfg.fullscreen) {
-            window.decorView.post { applyFullscreen() }
-        }
+        if (cfg.fullscreen) window.decorView.post { applyFullscreen() }
 
         gamePath = intent.dataString
         if (gamePath.isNullOrEmpty()) { finish(); return }
@@ -55,11 +49,11 @@ class PlayActivity : AppCompatActivity() {
 
         savesDir = File(getExternalFilesDir(null), "saves").apply { mkdirs() }
         gameKey = File(gamePath!!).nameWithoutExtension
-            .replace(Regex("[^a-zA-Z0-9_]"), "_")
-            .ifEmpty { "game" }
+            .replace(Regex("[^a-zA-Z0-9_]"), "_").ifEmpty { "game" }
 
         if (!EmulatorBridge.ensureLoaded()) { finish(); return }
         EmulatorBridge.nativeInit(this)
+        EmulatorBridge.nativeSetBackend(cfg.backend)
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
@@ -67,9 +61,7 @@ class PlayActivity : AppCompatActivity() {
         if (!loaded) { finish(); return }
 
         val sramFile = File(savesDir, "${gameKey}.sram")
-        if (sramFile.exists()) {
-            EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
-        }
+        if (sramFile.exists()) EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
 
         EmulatorBridge.nativeStart()
     }
@@ -80,8 +72,7 @@ class PlayActivity : AppCompatActivity() {
                 window.setDecorFitsSystemWindows(false)
                 window.insetsController?.let {
                     it.hide(WindowInsets.Type.systemBars())
-                    it.systemBarsBehavior =
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 }
             } else {
                 @Suppress("DEPRECATION")
@@ -94,83 +85,32 @@ class PlayActivity : AppCompatActivity() {
                     or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 )
             }
-        } catch (_: Throwable) {
-        }
+        } catch (_: Throwable) {}
     }
 
     private fun showMenu() {
-        val items = arrayOf(
-            "保存即时存档",
-            "加载即时存档",
-            "保存游戏内存档",
-            "加载游戏内存档",
-            "退出游戏"
-        )
-        AlertDialog.Builder(this)
-            .setTitle("菜单")
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> saveState()
-                    1 -> loadState()
-                    2 -> saveSram()
-                    3 -> loadSram()
-                    4 -> finish()
-                }
+        val items = arrayOf("保存即时存档", "加载即时存档", "保存游戏内存档", "加载游戏内存档", "退出游戏")
+        AlertDialog.Builder(this).setTitle("菜单").setItems(items) { _, w ->
+            when (w) {
+                0 -> saveState()
+                1 -> loadState()
+                2 -> saveSram()
+                3 -> loadSram()
+                4 -> finish()
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }.setNegativeButton("取消", null).show()
     }
 
     private fun stateFile(): File = File(savesDir, "${gameKey}.state")
     private fun sramFile(): File = File(savesDir, "${gameKey}.sram")
+    private fun saveState() { toast(if (EmulatorBridge.nativeSaveState(stateFile().absolutePath)) "即时存档已保存" else "保存失败") }
+    private fun loadState() { val f = stateFile(); if (!f.exists()) { toast("无存档"); return }; toast(if (EmulatorBridge.nativeLoadState(f.absolutePath)) "已读取" else "读取失败") }
+    private fun saveSram() { toast(if (EmulatorBridge.nativeSaveSram(sramFile().absolutePath)) "内存档已保存" else "保存失败") }
+    private fun loadSram() { val f = sramFile(); if (!f.exists()) { toast("无内存档"); return }; toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败") }
+    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
 
-    private fun saveState() {
-        val ok = EmulatorBridge.nativeSaveState(stateFile().absolutePath)
-        toast(if (ok) "即时存档已保存" else "保存失败")
-    }
-
-    private fun loadState() {
-        val f = stateFile()
-        if (!f.exists()) { toast("没有存档"); return }
-        val ok = EmulatorBridge.nativeLoadState(f.absolutePath)
-        toast(if (ok) "已读取即时存档" else "读取失败")
-    }
-
-    private fun saveSram() {
-        val ok = EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
-        toast(if (ok) "游戏内存档已保存" else "保存失败")
-    }
-
-    private fun loadSram() {
-        val f = sramFile()
-        if (!f.exists()) { toast("没有游戏内存档"); return }
-        val ok = EmulatorBridge.nativeLoadSram(f.absolutePath)
-        toast(if (ok) "已读取游戏内存档" else "读取失败")
-    }
-
-    private fun toast(s: String) {
-        Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        if (loaded) {
-            EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
-            EmulatorBridge.nativeStop()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (loaded) EmulatorBridge.nativeStop()
-    }
-
+    override fun onPause() { super.onPause(); if (loaded) { EmulatorBridge.nativeSaveSram(sramFile().absolutePath); EmulatorBridge.nativeStop() } }
+    override fun onDestroy() { super.onDestroy(); if (loaded) EmulatorBridge.nativeStop() }
     @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (loaded) {
-            EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
-            EmulatorBridge.nativeStop()
-        }
-        super.onBackPressed()
-    }
+    override fun onBackPressed() { if (loaded) { EmulatorBridge.nativeSaveSram(sramFile().absolutePath); EmulatorBridge.nativeStop() }; super.onBackPressed() }
 }
