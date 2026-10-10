@@ -24,6 +24,9 @@ extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_audio_start(double);
 extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
+extern void ultraman_video_prepare_fbo();
+extern void ultraman_video_set_hw_size(int, int);
+extern bool ultraman_video_is_ready();
 
 static std::atomic<bool> s_run{false};
 static std::atomic<bool> s_loaded{false};
@@ -112,7 +115,7 @@ static bool env_cb(unsigned cmd, void *data) {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             LOGI("SET_HW_RENDER type=%d backend=%d", cb->context_type, s_backend);
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGE("Vulkan requested: refusing (not implemented)");
+                LOGE("Vulkan refused");
                 return false;
             }
             if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
@@ -121,20 +124,25 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
                 struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
                 int requested = cb->context_type;
-                cb->context_reset          = ours->context_reset;
-                cb->context_destroy        = ours->context_destroy;
-                cb->get_current_framebuffer= ours->get_current_framebuffer;
-                cb->get_proc_address       = ours->get_proc_address;
-                cb->depth                  = ours->depth;
-                cb->stencil                = ours->stencil;
-                cb->bottom_left_origin     = ours->bottom_left_origin;
-                cb->version_major          = (requested == RETRO_HW_CONTEXT_OPENGL_ES2) ? 2 : 3;
-                cb->version_minor          = 0;
-                cb->cache_context          = ours->cache_context;
-                cb->debug_context          = ours->debug_context;
+                cb->context_reset           = ours->context_reset;
+                cb->context_destroy         = ours->context_destroy;
+                cb->get_current_framebuffer = ours->get_current_framebuffer;
+                cb->get_proc_address        = ours->get_proc_address;
+                cb->depth                   = ours->depth;
+                cb->stencil                 = ours->stencil;
+                cb->bottom_left_origin      = ours->bottom_left_origin;
+                cb->version_major           = (requested == RETRO_HW_CONTEXT_OPENGL_ES2) ? 2 : 3;
+                cb->version_minor           = 0;
+                cb->cache_context           = ours->cache_context;
+                cb->debug_context           = ours->debug_context;
                 s_hw_render = true;
                 LOGI("HW render accepted type=%d ver=%u.%u",
                      requested, cb->version_major, cb->version_minor);
+                if (ultraman_video_is_ready()) {
+                    ultraman_video_prepare_fbo();
+                } else {
+                    LOGE("SET_HW_RENDER: video not ready yet");
+                }
                 return true;
             }
             LOGE("HW type %d unsupported", cb->context_type);
@@ -203,8 +211,8 @@ bool ultraman_load_game(const std::string &path) {
          base_w, base_h, scale, hw_w, hw_h);
 
     ultraman_video_set_geometry(base_w, base_h, av.timing.fps);
-    ultraman_video_set_hw(s_hw_render, hw_w, hw_h);
-    ultraman_video_start();
+    ultraman_video_set_hw_size(hw_w, hw_h);
+    LOGI("geometry set %dx%d (scale=%d)", hw_w, hw_h, scale);
     struct retro_game_info game{};
     game.path = path.c_str();
     game.data = nullptr;

@@ -182,7 +182,13 @@ static bool hw_create_fbo() {
 }
 
 static void hw_context_reset() {
-    LOGI("hw context_reset");
+    LOGI("context_reset");
+    if (g_dpy == EGL_NO_DISPLAY || g_ctx == EGL_NO_CONTEXT || g_sfc == EGL_NO_SURFACE) {
+        LOGE("context_reset: EGL not ready");
+        return;
+    }
+    eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
+    LOGI("context_reset: eglMakeCurrent ok");
     g_hw_ready = false;
     hw_create_fbo();
     gl_state_reset();
@@ -254,7 +260,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     if (g_hw_mode) {
         if (!g_hw_ready || !g_hw_fbo) {
             if (!g_first_hw_logged) {
-                LOGE("hw mode but FBO not ready");
+                LOGE("hw mode but FBO not ready, skip");
                 g_first_hw_logged = true;
             }
             return;
@@ -421,4 +427,30 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         LOGI("surface arrived: auto-starting EGL");
         ultraman_video_start();
     }
+}
+
+void ultraman_video_prepare_fbo() {
+    std::lock_guard<std::mutex> lk(g_mtx);
+    LOGI("prepare_fbo: vready=%d", g_video_ready);
+    if (!g_video_ready) {
+        LOGE("prepare_fbo: video not ready");
+        return;
+    }
+    eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx);
+    if (!g_hw_fbo) {
+        hw_create_fbo();
+    } else {
+        LOGI("prepare_fbo: FBO already %u", g_hw_fbo);
+    }
+    gl_state_reset();
+}
+
+void ultraman_video_set_hw_size(int w, int h) {
+    if (w > 0) g_hw_w = w;
+    if (h > 0) g_hw_h = h;
+    LOGI("set_hw_size %dx%d", g_hw_w, g_hw_h);
+}
+
+bool ultraman_video_is_ready() {
+    return g_video_ready;
 }
