@@ -329,7 +329,7 @@ void ultraman_video_start() {
     if (!eglInitialize(g_dpy, nullptr, nullptr)) { LOGE("eglInitialize fail"); return; }
     eglBindAPI(EGL_OPENGL_ES_API);
 
-    g_egl_get_proc = eglGetProcAddress ? (PFNEGLGETPROCADDRESSPROC)eglGetProcAddress : nullptr;
+    g_egl_get_proc = &eglGetProcAddress;
 
     EGLint attribs[] = {
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
