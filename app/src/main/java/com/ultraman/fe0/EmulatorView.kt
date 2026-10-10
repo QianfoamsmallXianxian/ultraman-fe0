@@ -10,8 +10,18 @@ class EmulatorView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
 
-    var onSurfaceReady: (() -> Unit)? = null
     private var readyFired = false
+    private var pendingCallback: (() -> Unit)? = null
+
+    var onSurfaceReady: (() -> Unit)?
+        get() = pendingCallback
+        set(value) {
+            pendingCallback = value
+            if (readyFired && value != null) {
+                Log.i("UltramanFE0", "onSurfaceReady after fire, invoke now")
+                value.invoke()
+            }
+        }
 
     init {
         holder.addCallback(this)
@@ -23,7 +33,7 @@ class EmulatorView @JvmOverloads constructor(
         EmulatorBridge.nativeSetSurface(h.surface)
         if (!readyFired) {
             readyFired = true
-            onSurfaceReady?.invoke()
+            pendingCallback?.invoke()
         }
     }
 
