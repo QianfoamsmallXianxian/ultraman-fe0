@@ -14,6 +14,10 @@
 #include "ulog.h"
 #include "libretro.h"
 
+#define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
+#define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
+#define LOGW(...) ulog_write(ANDROID_LOG_WARN,  "UltramanFE0", __VA_ARGS__)
+
 typedef PFNGLGENFRAMEBUFFERSPROC       PFN_GLGENFB;
 typedef PFNGLBINDFRAMEBUFFERPROC       PFN_GLBINDFB;
 typedef PFNGLDELETEFRAMEBUFFERSPROC    PFN_GLDELFB;
@@ -62,9 +66,6 @@ static void load_gl_funcs() {
 extern void ultraman_on_video_ready();
 #define GLLOCK std::lock_guard<std::recursive_mutex> _lk(g_gl_mtx)
 
-#define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
-#define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
-#define LOGW(...) ulog_write(ANDROID_LOG_WARN,  "UltramanFE0", __VA_ARGS__)
 
 static ANativeWindow* g_win = nullptr;
 static EGLDisplay     g_dpy = EGL_NO_DISPLAY;
