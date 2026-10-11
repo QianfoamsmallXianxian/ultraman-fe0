@@ -10,6 +10,9 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+
+int g_use_vulkan = 0;
+
 #include "ulog.h"
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
@@ -611,7 +614,6 @@ void ultraman_reset_context() {
 }
 
 
-int g_use_vulkan = 0;
 
 void ultraman_notify_vulkan_recreate(ANativeWindow* win, uint32_t w, uint32_t h) {
     LOGI("notify_vulkan_recreate %p %ux%u", win, w, h);
