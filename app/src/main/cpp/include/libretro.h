@@ -91,18 +91,21 @@ enum retro_hw_context_type {
     RETRO_HW_CONTEXT_VULKAN = 6,
 };
 typedef void (*retro_proc_address_t)(void);
+typedef void (*retro_hw_context_reset_t)(void);
+typedef uintptr_t (*retro_hw_get_current_framebuffer_t)(void);
+typedef retro_proc_address_t (*retro_hw_get_proc_address_t)(const char *sym);
+
 struct retro_hw_render_callback {
     enum retro_hw_context_type context_type;
-    void (*context_reset)(void);
-    void (*context_destroy)(void);
-    uintptr_t (*get_current_framebuffer)(void);
-    retro_proc_address_t (*get_proc_address)(const char *sym);
+    retro_hw_context_reset_t context_reset;
+    retro_hw_get_current_framebuffer_t get_current_framebuffer;
+    retro_hw_get_proc_address_t get_proc_address;
     bool depth;
     bool stencil;
     bool bottom_left_origin;
-    unsigned version_major;
-    unsigned version_minor;
+    unsigned version;
     bool cache_context;
+    retro_hw_context_reset_t context_destroy;
     bool debug_context;
 };
 typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);

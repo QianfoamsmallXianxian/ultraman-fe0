@@ -190,9 +190,8 @@ static bool env_cb(unsigned cmd, void *data) {
                 LOGE("SET_HW_RENDER: null cb");
                 return false;
             }
-            LOGI("SET_HW_RENDER req type=%d depth=%d stencil=%d %u.%u",
-                 cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0,
-                 cb->version_major, cb->version_minor);
+            LOGI("SET_HW_RENDER req type=%d depth=%d stencil=%d ver=%u",
+                 cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0, cb->version);
 
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
                 LOGW("Vulkan refused");
@@ -209,19 +208,20 @@ static bool env_cb(unsigned cmd, void *data) {
             }
 
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
+
             cb->context_reset           = ours->context_reset;
-            cb->context_destroy         = ours->context_destroy;
             cb->get_current_framebuffer = ours->get_current_framebuffer;
             cb->get_proc_address        = ours->get_proc_address;
             cb->depth                   = true;
             cb->stencil                 = true;
             cb->bottom_left_origin      = false;
+            cb->version                 = 2;
             cb->cache_context           = false;
+            cb->context_destroy         = ours->context_destroy;
             cb->debug_context           = false;
 
             s_hw_render = true;
-            LOGI("HW accepted type=%d ver=%u.%u", cb->context_type,
-                 cb->version_major, cb->version_minor);
+            LOGI("HW accepted type=%d ver=%u", cb->context_type, cb->version);
 
             if (ultraman_video_is_ready()) {
                 ultraman_video_create_fbo_now();

@@ -260,6 +260,11 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
         static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
     }
+    if (strcmp(sym, "glBlitFramebuffer") == 0 ||
+        strcmp(sym, "glBindFramebuffer") == 0 ||
+        strcmp(sym, "glGenFramebuffers") == 0) {
+        LOGI("proc KEY %s -> %p", sym, p);
+    }
     if (n <= 15 || n % 50 == 0) {
         LOGI("proc[%d] %s -> %p", n, sym, p);
     }
@@ -268,17 +273,17 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
 
 struct retro_hw_render_callback* ultraman_get_hw_cb() {
     static struct retro_hw_render_callback cb;
-    cb.context_type          = RETRO_HW_CONTEXT_OPENGL_ES3;
+    memset(&cb, 0, sizeof(cb));
+    cb.context_type          = RETRO_HW_CONTEXT_OPENGL_ES2;
     cb.context_reset         = hw_context_reset;
-    cb.context_destroy       = hw_context_destroy;
     cb.get_current_framebuffer = hw_get_current_fbo;
     cb.get_proc_address      = hw_get_proc;
     cb.depth                 = true;
     cb.stencil               = true;
     cb.bottom_left_origin    = false;
-    cb.version_major         = 3;
-    cb.version_minor         = 0;
+    cb.version               = 2;
     cb.cache_context         = false;
+    cb.context_destroy       = hw_context_destroy;
     cb.debug_context         = false;
     return &cb;
 }
