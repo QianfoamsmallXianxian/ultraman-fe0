@@ -14,6 +14,51 @@
 #include "ulog.h"
 #include "libretro.h"
 
+typedef PFNGLGENFRAMEBUFFERSPROC       PFN_GLGENFB;
+typedef PFNGLBINDFRAMEBUFFERPROC       PFN_GLBINDFB;
+typedef PFNGLDELETEFRAMEBUFFERSPROC    PFN_GLDELFB;
+typedef PFNGLFRAMEBUFFERTEXTURE2DPROC  PFN_GLFBTEX;
+typedef PFNGLFRAMEBUFFERRENDERBUFFERPROC PFN_GLFBRBO;
+typedef PFNGLCHECKFRAMEBUFFERSTATUSPROC PFN_GLFBSTATUS;
+typedef PFNGLGENRENDERBUFFERSPROC      PFN_GLGENRBO;
+typedef PFNGLRENDERBUFFERSTORAGEPROC   PFN_GLRBOSTORE;
+typedef PFNGLBLITFRAMEBUFFERPROC       PFN_GLBLIT;
+
+static void* s_pfn_glGenFramebuffers        = nullptr;
+static void* s_pfn_glBindFramebuffer        = nullptr;
+static void* s_pfn_glDeleteFramebuffers     = nullptr;
+static void* s_pfn_glFramebufferTexture2D   = nullptr;
+static void* s_pfn_glFramebufferRenderbuffer= nullptr;
+static void* s_pfn_glCheckFramebufferStatus = nullptr;
+static void* s_pfn_glGenRenderbuffers       = nullptr;
+static void* s_pfn_glRenderbufferStorage    = nullptr;
+static void* s_pfn_glBlitFramebuffer        = nullptr;
+
+#define GL_GEN_FB       ((PFN_GLGENFB)s_pfn_glGenFramebuffers)
+#define GL_BIND_FB      ((PFN_GLBINDFB)s_pfn_glBindFramebuffer)
+#define GL_DEL_FB       ((PFN_GLDELFB)s_pfn_glDeleteFramebuffers)
+#define GL_FB_TEX2D     ((PFN_GLFBTEX)s_pfn_glFramebufferTexture2D)
+#define GL_FB_RBO       ((PFN_GLFBRBO)s_pfn_glFramebufferRenderbuffer)
+#define GL_FB_STATUS    ((PFN_GLFBSTATUS)s_pfn_glCheckFramebufferStatus)
+#define GL_GEN_RBO      ((PFN_GLGENRBO)s_pfn_glGenRenderbuffers)
+#define GL_RBO_STORAGE  ((PFN_GLRBOSTORE)s_pfn_glRenderbufferStorage)
+#define GL_BLIT_FB      ((PFN_GLBLIT)s_pfn_glBlitFramebuffer)
+
+static void load_gl_funcs() {
+    s_pfn_glGenFramebuffers         = (void*)eglGetProcAddress("glGenFramebuffers");
+    s_pfn_glBindFramebuffer         = (void*)eglGetProcAddress("glBindFramebuffer");
+    s_pfn_glDeleteFramebuffers      = (void*)eglGetProcAddress("glDeleteFramebuffers");
+    s_pfn_glFramebufferTexture2D    = (void*)eglGetProcAddress("glFramebufferTexture2D");
+    s_pfn_glFramebufferRenderbuffer = (void*)eglGetProcAddress("glFramebufferRenderbuffer");
+    s_pfn_glCheckFramebufferStatus  = (void*)eglGetProcAddress("glCheckFramebufferStatus");
+    s_pfn_glGenRenderbuffers        = (void*)eglGetProcAddress("glGenRenderbuffers");
+    s_pfn_glRenderbufferStorage     = (void*)eglGetProcAddress("glRenderbufferStorage");
+    s_pfn_glBlitFramebuffer         = (void*)eglGetProcAddress("glBlitFramebuffer");
+    LOGI("load_gl_funcs: blit=%p bindfb=%p genfb=%p",
+         s_pfn_glBlitFramebuffer, s_pfn_glBindFramebuffer, s_pfn_glGenFramebuffers);
+}
+
+
 extern void ultraman_on_video_ready();
 #define GLLOCK std::lock_guard<std::recursive_mutex> _lk(g_gl_mtx)
 
@@ -253,40 +298,6 @@ static std::atomic<int> s_proc_count{0};
 static std::mutex g_proc_cache_mtx;
 static std::map<std::string, void*> g_proc_cache;
 
-
-static void* s_pfn_glBlitFramebuffer = nullptr;
-static void* s_pfn_glBindFramebuffer = nullptr;
-static void* s_pfn_glGenFramebuffers = nullptr;
-static void* s_pfn_glDeleteFramebuffers = nullptr;
-static void* s_pfn_glFramebufferTexture2D = nullptr;
-static void* s_pfn_glFramebufferRenderbuffer = nullptr;
-static void* s_pfn_glCheckFramebufferStatus = nullptr;
-static void* s_pfn_glGenRenderbuffers = nullptr;
-static void* s_pfn_glRenderbufferStorage = nullptr;
-
-static void load_gl_funcs() {
-    s_pfn_glBlitFramebuffer         = (void*)eglGetProcAddress("glBlitFramebuffer");
-    s_pfn_glBindFramebuffer         = (void*)eglGetProcAddress("glBindFramebuffer");
-    s_pfn_glGenFramebuffers         = (void*)eglGetProcAddress("glGenFramebuffers");
-    s_pfn_glDeleteFramebuffers      = (void*)eglGetProcAddress("glDeleteFramebuffers");
-    s_pfn_glFramebufferTexture2D    = (void*)eglGetProcAddress("glFramebufferTexture2D");
-    s_pfn_glFramebufferRenderbuffer = (void*)eglGetProcAddress("glFramebufferRenderbuffer");
-    s_pfn_glCheckFramebufferStatus  = (void*)eglGetProcAddress("glCheckFramebufferStatus");
-    s_pfn_glGenRenderbuffers        = (void*)eglGetProcAddress("glGenRenderbuffers");
-    s_pfn_glRenderbufferStorage     = (void*)eglGetProcAddress("glRenderbufferStorage");
-    LOGI("load_gl_funcs: blit=%p bindfb=%p genfb=%p",
-         s_pfn_glBlitFramebuffer, s_pfn_glBindFramebuffer, s_pfn_glGenFramebuffers);
-}
-
-#define GL_BLIT_FB     ((PFN_GLBLITFRAMEBUFFER)s_pfn_glBlitFramebuffer)
-#define GL_BIND_FB     ((PFN_GLBINDFRAMEBUFFER)s_pfn_glBindFramebuffer)
-#define GL_GEN_FB      ((PFN_GLGENFRAMEBUFFERS)s_pfn_glGenFramebuffers)
-#define GL_DEL_FB      ((PFN_GLDELETEFRAMEBUFFERS)s_pfn_glDeleteFramebuffers)
-#define GL_FB_TEX2D    ((PFN_GLFRAMEBUFFERTEXTURE2D)s_pfn_glFramebufferTexture2D)
-#define GL_FB_RBO      ((PFN_GLFRAMEBUFFERRENDERBUFFER)s_pfn_glFramebufferRenderbuffer)
-#define GL_FB_STATUS   ((PFN_GLCHECKFRAMEBUFFERSTATUS)s_pfn_glCheckFramebufferStatus)
-#define GL_GEN_RBO     ((PFN_GLGENRENDERBUFFERS)s_pfn_glGenRenderbuffers)
-#define GL_RBO_STORAGE ((PFN_GLRENDERBUFFERSTORAGE)s_pfn_glRenderbufferStorage)
 
 static void* resolve_gl_proc(const char* sym) {
     if (!sym) return nullptr;
