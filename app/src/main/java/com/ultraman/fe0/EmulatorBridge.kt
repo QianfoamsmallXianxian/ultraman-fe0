@@ -28,6 +28,7 @@ object EmulatorBridge {
     external fun nativeStart()
     external fun nativeStop()
     external fun nativePause()
+    external fun nativeResetContext()
     external fun nativeResume()
     external fun nativeSetSurface(surface: Surface?)
     external fun nativeSetAudioEnabled(enabled: Boolean)

@@ -556,3 +556,16 @@ void ultraman_on_video_ready() {
 int64_t ultraman_get_frame_count() {
     return (int64_t)s_frames.load();
 }
+
+
+void ultraman_reset_context() {
+    LOGI("reset_context: invoking core ctx_reset");
+    if (!s_hw_render || !s_core_ctx_reset) {
+        LOGW("reset_context: no core ctx_reset saved");
+        return;
+    }
+    extern bool ultraman_video_create_fbo_now();
+    ultraman_video_create_fbo_now();
+    s_core_ctx_reset();
+    LOGI("reset_context: done");
+}
