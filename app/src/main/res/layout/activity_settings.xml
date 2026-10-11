@@ -8,8 +8,18 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:text="设 置" android:textColor="#E0E6ED"
         android:textSize="22sp" android:textStyle="bold"/>
+
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="24dp" android:background="@drawable/bg_card"
+        android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="渲染器" android:textColor="#E0E6ED" android:textSize="15sp"/>
+        <Spinner android:id="@+id/spBackend" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:minWidth="130dp"/>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:background="@drawable/bg_card"
         android:orientation="vertical" android:padding="16dp">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal">
@@ -21,6 +31,7 @@
         <SeekBar android:id="@+id/sbRes" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="8dp"/>
     </LinearLayout>
+
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="10dp" android:background="@drawable/bg_card"
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
@@ -29,14 +40,16 @@
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/swFullscreen"
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
+
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="10dp" android:background="@drawable/bg_card"
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="垂直同步" android:textColor="#E0E6ED" android:textSize="15sp"/>
-        <androidx.appcompat.widget.SwitchCompat android:id="@+id/swVsync"
+            android:layout_weight="1" android:text="FPS 显示" android:textColor="#E0E6ED" android:textSize="15sp"/>
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/swShowFps"
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
+
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_marginTop="10dp" android:background="@drawable/bg_card"
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
@@ -45,29 +58,17 @@
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/swAudio"
             android:layout_width="wrap_content" android:layout_height="wrap_content"/>
     </LinearLayout>
-    
-        <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/bg_card"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="16dp">
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="渲染器"
-            android:textColor="#E0E6ED"
-            android:textSize="15sp"/>
-        <Spinner
-            android:id="@+id/spBackend"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="120dp"/>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:background="@drawable/bg_card"
+        android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:text="音频缓冲" android:textColor="#E0E6ED" android:textSize="15sp"/>
+        <Spinner android:id="@+id/spAudioBuffer" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:minWidth="130dp"/>
     </LinearLayout>
-<Button android:id="@+id/btnEditButtons"
+
+    <Button android:id="@+id/btnEditButtons"
         android:layout_width="match_parent" android:layout_height="52dp"
         android:layout_marginTop="10dp" android:background="@drawable/bg_btn_secondary"
         android:text="按键布局" android:textColor="#7D8FA8" android:textSize="14sp"/>

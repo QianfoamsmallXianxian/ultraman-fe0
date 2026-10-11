@@ -13,6 +13,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import java.io.File
 import java.io.FileOutputStream
 
@@ -48,7 +49,9 @@ class PlayActivity : AppCompatActivity() {
         root.addView(menuBtn, lp)
         setContentView(root)
 
-        if (cfg.fullscreen) window.decorView.post { applyFullscreen() }
+        window.decorView.post { applyFullscreen() }
+        window.decorView.postDelayed({ applyFullscreen() }, 300)
+        window.decorView.postDelayed({ applyFullscreen() }, 1000)
 
         gamePath = intent.dataString
         if (gamePath.isNullOrEmpty()) { finish(); return }
@@ -65,9 +68,10 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetBackend(cfg.backend)
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
+        EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            android.util.Log.i("UltramanFE0", "surface recreated: resume")
+            Log.i("UltramanFE0", "surface recreated: resume")
             if (loaded) EmulatorBridge.nativeResume()
         }
 
@@ -131,8 +135,14 @@ class PlayActivity : AppCompatActivity() {
 
     private fun applyFullscreen() {
         try {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.attributes.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                window.setDecorFitsSystemWindows(false)
                 window.insetsController?.let {
                     it.hide(WindowInsets.Type.systemBars())
                     it.systemBarsBehavior =
@@ -206,9 +216,12 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (loaded) {
-            EmulatorBridge.nativeResume()
-        }
+        if (loaded) EmulatorBridge.nativeResume()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyFullscreen()
     }
 
     override fun onDestroy() {
@@ -224,6 +237,7 @@ class PlayActivity : AppCompatActivity() {
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             EmulatorBridge.nativeStop()
+            loaded = false
         }
         super.onBackPressed()
     }

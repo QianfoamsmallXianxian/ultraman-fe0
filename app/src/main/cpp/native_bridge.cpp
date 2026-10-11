@@ -76,6 +76,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativePau
 extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeResume(JNIEnv *, jclass) {
     ultraman_resume_render();
 }
+extern int64_t ultraman_get_frame_count();
+extern void ultraman_set_audio_buffer(int level);
+extern "C" JNIEXPORT jlong JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeGetFrameCount(JNIEnv *, jclass) {
+    return (jlong)ultraman_get_frame_count();
+}
+extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetAudioBuffer(JNIEnv *, jclass, jint level) {
+    ultraman_set_audio_buffer(level);
+}
 extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeStop(JNIEnv *, jclass) { ultraman_stop_loop(); }
 extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetSurface(JNIEnv *env, jclass, jobject s) { ultraman_set_surface(env, s); }
 extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetAudioEnabled(JNIEnv *, jclass, jboolean on) { ultraman_set_audio_enabled(on == JNI_TRUE); }

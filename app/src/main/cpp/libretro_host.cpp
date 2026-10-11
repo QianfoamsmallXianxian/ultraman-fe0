@@ -551,3 +551,8 @@ void ultraman_call_core_ctx_reset() {
 void ultraman_on_video_ready() {
     LOGI("video_ready: video became ready");
 }
+
+
+int64_t ultraman_get_frame_count() {
+    return (int64_t)s_frames.load();
+}

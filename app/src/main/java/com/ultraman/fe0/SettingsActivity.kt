@@ -18,12 +18,13 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
+        val spBackend = findViewById<Spinner>(R.id.spBackend)
         val sbRes = findViewById<SeekBar>(R.id.sbRes)
         val tvRes = findViewById<TextView>(R.id.tvRes)
         val swFull = findViewById<SwitchCompat>(R.id.swFullscreen)
-        val swVsync = findViewById<SwitchCompat>(R.id.swVsync)
+        val swShowFps = findViewById<SwitchCompat>(R.id.swShowFps)
         val swAudio = findViewById<SwitchCompat>(R.id.swAudio)
-        val spBackend = findViewById<Spinner>(R.id.spBackend)
+        val spAudioBuffer = findViewById<Spinner>(R.id.spAudioBuffer)
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
@@ -54,10 +55,25 @@ class SettingsActivity : AppCompatActivity() {
 
         swFull.isChecked = cfg.fullscreen
         swFull.setOnCheckedChangeListener { _, v -> cfg.fullscreen = v }
-        swVsync.isChecked = cfg.vsync
-        swVsync.setOnCheckedChangeListener { _, v -> cfg.vsync = v }
+
+        swShowFps.isChecked = cfg.showFps
+        swShowFps.setOnCheckedChangeListener { _, v -> cfg.showFps = v }
+
         swAudio.isChecked = cfg.audioEnabled
         swAudio.setOnCheckedChangeListener { _, v -> cfg.audioEnabled = v }
+
+        spAudioBuffer.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            arrayOf("低 (延迟小·可能爆音)", "中 (推荐)", "高 (减少爆音)")
+        )
+        spAudioBuffer.setSelection(cfg.audioBuffer.coerceIn(0, 2))
+        spAudioBuffer.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                cfg.audioBuffer = pos
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
 
         btnEdit.setOnClickListener { startActivity(Intent(this, ButtonEditorActivity::class.java)) }
         btnBack.setOnClickListener { finish() }
