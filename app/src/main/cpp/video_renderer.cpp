@@ -196,6 +196,23 @@ static bool ensure_current() {
     return true;
 }
 
+static void reload_gl_after_egl() {
+    const char* libs[] = {
+        "libGLESv2.so",
+        "libGLESv3.so",
+        "libEGL.so",
+        "libGLESv2_adreno.so",
+        "/vendor/lib64/egl/libGLESv2_adreno.so",
+        "/system/lib64/egl/libGLESv2_adreno.so",
+        nullptr
+    };
+    for (int i = 0; libs[i]; i++) {
+        void* h = dlopen(libs[i], RTLD_NOW | RTLD_GLOBAL | RTLD_NOLOAD);
+        if (!h) h = dlopen(libs[i], RTLD_NOW | RTLD_GLOBAL);
+        LOGI("reload_gl %s -> %p", libs[i], h);
+    }
+}
+
 static void gl_state_reset() {
     GL_BIND_FB(GL_FRAMEBUFFER, 0);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -601,6 +618,8 @@ void ultraman_video_start() {
 
     LOGI("GL version: %s", glGetString(GL_VERSION));
     LOGI("GL renderer: %s", glGetString(GL_RENDERER));
+
+    reload_gl_after_egl();
 
     if (!g_hw_mode.load()) sw_setup();
 
