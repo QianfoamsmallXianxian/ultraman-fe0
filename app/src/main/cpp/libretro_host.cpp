@@ -215,7 +215,7 @@ static bool env_cb(unsigned cmd, void *data) {
             cb->depth                   = true;
             cb->stencil                 = true;
             cb->bottom_left_origin      = false;
-            cb->version                 = 2;
+            cb->version                 = 3;
             cb->cache_context           = false;
             cb->context_destroy         = ours->context_destroy;
             cb->debug_context           = false;

@@ -248,24 +248,46 @@ static uintptr_t hw_get_current_fbo() {
 }
 
 static std::atomic<int> s_proc_count{0};
+static std::atomic<int> s_proc_count{0};
+
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
     int n = s_proc_count.fetch_add(1) + 1;
-    void* p = (void*)eglGetProcAddress(sym);
+
+    void* p = nullptr;
+
+    if (g_dpy != EGL_NO_DISPLAY && eglGetCurrentContext() != EGL_NO_CONTEXT) {
+        p = (void*)eglGetProcAddress(sym);
+    }
+
     if (!p) {
-        if (!g_gles_lib) g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
+        if (!g_gles_lib) {
+            g_gles_lib = dlopen("libGLESv2.so", RTLD_NOW | RTLD_GLOBAL);
+        }
         if (g_gles_lib) p = dlsym(g_gles_lib, sym);
     }
+
     if (!p) {
-        static void* egl_lib = dlopen("libEGL.so", RTLD_NOW);
+        static void* egl_lib = nullptr;
+        if (!egl_lib) egl_lib = dlopen("libEGL.so", RTLD_NOW);
         if (egl_lib) p = dlsym(egl_lib, sym);
     }
-    if (strcmp(sym, "glBlitFramebuffer") == 0 ||
-        strcmp(sym, "glBindFramebuffer") == 0 ||
-        strcmp(sym, "glGenFramebuffers") == 0) {
-        LOGI("proc KEY %s -> %p", sym, p);
+
+    if (!p) {
+        p = dlsym(RTLD_DEFAULT, sym);
     }
-    if (n <= 15 || n % 50 == 0) {
+
+    int key = (strcmp(sym, "glBlitFramebuffer") == 0 ||
+               strcmp(sym, "glBindFramebuffer") == 0 ||
+               strcmp(sym, "glGenFramebuffers") == 0 ||
+               strcmp(sym, "glCheckFramebufferStatus") == 0 ||
+               strcmp(sym, "glFramebufferTexture2D") == 0 ||
+               strcmp(sym, "glFramebufferRenderbuffer") == 0 ||
+               strcmp(sym, "glDeleteFramebuffers") == 0 ||
+               strcmp(sym, "glGenRenderbuffers") == 0 ||
+               strcmp(sym, "glRenderbufferStorage") == 0);
+
+    if (key || n <= 15 || n % 50 == 0) {
         LOGI("proc[%d] %s -> %p", n, sym, p);
     }
     return (retro_proc_address_t)p;
@@ -281,7 +303,7 @@ struct retro_hw_render_callback* ultraman_get_hw_cb() {
     cb.depth                 = true;
     cb.stencil               = true;
     cb.bottom_left_origin    = false;
-    cb.version               = 2;
+    cb.version               = 3;
     cb.cache_context         = false;
     cb.context_destroy       = hw_context_destroy;
     cb.debug_context         = false;
