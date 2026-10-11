@@ -7,6 +7,8 @@
 #include <GLES3/gl3.h>
 #include <dlfcn.h>
 #include <mutex>
+#include <map>
+#include <string>
 #include <atomic>
 #include <cstring>
 #include "ulog.h"
@@ -248,15 +250,21 @@ static uintptr_t hw_get_current_fbo() {
 }
 
 static std::atomic<int> s_proc_count{0};
+static std::mutex g_proc_cache_mtx;
+static std::map<std::string, void*> g_proc_cache;
 
-
-static retro_proc_address_t hw_get_proc(const char* sym) {
+static void* resolve_gl_proc(const char* sym) {
     if (!sym) return nullptr;
-    int n = s_proc_count.fetch_add(1) + 1;
 
     void* p = nullptr;
 
-    if (g_dpy != EGL_NO_DISPLAY && eglGetCurrentContext() != EGL_NO_CONTEXT) {
+    if (g_dpy != EGL_NO_DISPLAY && g_sfc != EGL_NO_SURFACE && g_ctx != EGL_NO_CONTEXT) {
+        EGLContext cur = eglGetCurrentContext();
+        if (cur != g_ctx) {
+            if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+                g_current_sfc = g_sfc;
+            }
+        }
         p = (void*)eglGetProcAddress(sym);
     }
 
@@ -273,8 +281,26 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
         if (egl_lib) p = dlsym(egl_lib, sym);
     }
 
-    if (!p) {
-        p = dlsym(RTLD_DEFAULT, sym);
+    return p;
+}
+
+static retro_proc_address_t hw_get_proc(const char* sym) {
+    if (!sym) return nullptr;
+    int n = s_proc_count.fetch_add(1) + 1;
+
+    {
+        std::lock_guard<std::mutex> lk(g_proc_cache_mtx);
+        auto it = g_proc_cache.find(sym);
+        if (it != g_proc_cache.end()) {
+            return (retro_proc_address_t)it->second;
+        }
+    }
+
+    void* p = resolve_gl_proc(sym);
+
+    {
+        std::lock_guard<std::mutex> lk(g_proc_cache_mtx);
+        g_proc_cache[sym] = p;
     }
 
     int key = (strcmp(sym, "glBlitFramebuffer") == 0 ||
@@ -285,9 +311,12 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
                strcmp(sym, "glFramebufferRenderbuffer") == 0 ||
                strcmp(sym, "glDeleteFramebuffers") == 0 ||
                strcmp(sym, "glGenRenderbuffers") == 0 ||
-               strcmp(sym, "glRenderbufferStorage") == 0);
+               strcmp(sym, "glRenderbufferStorage") == 0 ||
+               strcmp(sym, "glReadPixels") == 0 ||
+               strcmp(sym, "glTexImage2D") == 0 ||
+               strcmp(sym, "glGetIntegerv") == 0);
 
-    if (key || n <= 15 || n % 50 == 0) {
+    if (key || n <= 20 || n % 100 == 0) {
         LOGI("proc[%d] %s -> %p", n, sym, p);
     }
     return (retro_proc_address_t)p;
@@ -533,6 +562,17 @@ void ultraman_video_start() {
     g_view_w = ANativeWindow_getWidth(g_win);
     g_view_h = ANativeWindow_getHeight(g_win);
     LOGI("video ready %dx%d", g_view_w, g_view_h);
+
+    {
+        void* blit = resolve_gl_proc("glBlitFramebuffer");
+        void* bindfb = resolve_gl_proc("glBindFramebuffer");
+        void* genfb = resolve_gl_proc("glGenFramebuffers");
+        LOGI("prefetch_blit glBlitFramebuffer=%p glBindFramebuffer=%p glGenFramebuffers=%p",
+             blit, bindfb, genfb);
+        if (!blit) {
+            LOGE("!!! glBlitFramebuffer is NULL, hw render will crash !!!");
+        }
+    }
 
     ultraman_on_video_ready();
 }
