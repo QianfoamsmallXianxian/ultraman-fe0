@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.min
@@ -29,11 +30,13 @@ class OverlayView @JvmOverloads constructor(
 
     private fun hitAll(x: Float, y: Float): List<Int> {
         val res = mutableListOf<Int>()
+        val w = width.toFloat()
+        val h = height.toFloat()
         for (b in buttons) {
-            val dx = x - px(b)
-            val dy = y - py(b)
-            val r = pr(b) * 1.45f
-            if (dx * dx + dy * dy < r * r) {
+            val dx = (x - px(b)) / pr(b)
+            val dy = (y - py(b)) / pr(b) * 1.6f
+            val d2 = dx * dx + dy * dy
+            if (d2 < 1.75f * 1.75f) {
                 res.add(b.id)
             }
         }

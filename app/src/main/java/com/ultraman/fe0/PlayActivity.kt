@@ -66,6 +66,11 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
+        view.onSurfaceRecreated = {
+            android.util.Log.i("UltramanFE0", "surface recreated: resume")
+            if (loaded) EmulatorBridge.nativeResume()
+        }
+
         view.onSurfaceReady = surfaceReady@{
             if (initGuard) return@surfaceReady
             initGuard = true

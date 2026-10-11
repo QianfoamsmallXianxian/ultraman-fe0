@@ -12,6 +12,7 @@ class EmulatorView @JvmOverloads constructor(
 
     private var readyFired = false
     private var pendingCallback: (() -> Unit)? = null
+    var onSurfaceRecreated: (() -> Unit)? = null
 
     var onSurfaceReady: (() -> Unit)?
         get() = pendingCallback
@@ -34,6 +35,8 @@ class EmulatorView @JvmOverloads constructor(
         if (!readyFired) {
             readyFired = true
             pendingCallback?.invoke()
+        } else {
+            onSurfaceRecreated?.invoke()
         }
     }
 
