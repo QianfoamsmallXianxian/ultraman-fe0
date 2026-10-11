@@ -151,7 +151,7 @@ static bool ensure_current() {
 }
 
 static void gl_state_reset() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_BIND_FB(GL_FRAMEBUFFER, 0);
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     glUseProgram(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -171,7 +171,7 @@ static void gl_state_reset() {
 }
 
 static void hw_destroy_fbo() {
-    if (g_hw_fbo)   { glDeleteFramebuffers(1, &g_hw_fbo);    g_hw_fbo = 0; }
+    if (g_hw_fbo)   { GL_DEL_FB(1, &g_hw_fbo);    g_hw_fbo = 0; }
     if (g_hw_tex)   { glDeleteTextures(1, &g_hw_tex);        g_hw_tex = 0; }
     if (g_hw_depth) { glDeleteRenderbuffers(1, &g_hw_depth); g_hw_depth = 0; }
 }
@@ -190,18 +190,18 @@ static bool hw_create_fbo(int w, int h) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glGenRenderbuffers(1, &g_hw_depth);
+    GL_GEN_RBO(1, &g_hw_depth);
     glBindRenderbuffer(GL_RENDERBUFFER, g_hw_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
+    GL_RBO_STORAGE(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
 
-    glGenFramebuffers(1, &g_hw_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+    GL_GEN_FB(1, &g_hw_fbo);
+    GL_BIND_FB(GL_FRAMEBUFFER, g_hw_fbo);
+    GL_FB_TEX2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_2D, g_hw_tex, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+    GL_FB_RBO(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
                               GL_RENDERBUFFER, g_hw_depth);
 
-    GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    GLenum st = GL_FB_STATUS(GL_FRAMEBUFFER);
     if (st != GL_FRAMEBUFFER_COMPLETE) {
         LOGE("FBO incomplete: 0x%x", st);
         hw_destroy_fbo();
@@ -252,6 +252,41 @@ static uintptr_t hw_get_current_fbo() {
 static std::atomic<int> s_proc_count{0};
 static std::mutex g_proc_cache_mtx;
 static std::map<std::string, void*> g_proc_cache;
+
+
+static void* s_pfn_glBlitFramebuffer = nullptr;
+static void* s_pfn_glBindFramebuffer = nullptr;
+static void* s_pfn_glGenFramebuffers = nullptr;
+static void* s_pfn_glDeleteFramebuffers = nullptr;
+static void* s_pfn_glFramebufferTexture2D = nullptr;
+static void* s_pfn_glFramebufferRenderbuffer = nullptr;
+static void* s_pfn_glCheckFramebufferStatus = nullptr;
+static void* s_pfn_glGenRenderbuffers = nullptr;
+static void* s_pfn_glRenderbufferStorage = nullptr;
+
+static void load_gl_funcs() {
+    s_pfn_glBlitFramebuffer         = (void*)eglGetProcAddress("glBlitFramebuffer");
+    s_pfn_glBindFramebuffer         = (void*)eglGetProcAddress("glBindFramebuffer");
+    s_pfn_glGenFramebuffers         = (void*)eglGetProcAddress("glGenFramebuffers");
+    s_pfn_glDeleteFramebuffers      = (void*)eglGetProcAddress("glDeleteFramebuffers");
+    s_pfn_glFramebufferTexture2D    = (void*)eglGetProcAddress("glFramebufferTexture2D");
+    s_pfn_glFramebufferRenderbuffer = (void*)eglGetProcAddress("glFramebufferRenderbuffer");
+    s_pfn_glCheckFramebufferStatus  = (void*)eglGetProcAddress("glCheckFramebufferStatus");
+    s_pfn_glGenRenderbuffers        = (void*)eglGetProcAddress("glGenRenderbuffers");
+    s_pfn_glRenderbufferStorage     = (void*)eglGetProcAddress("glRenderbufferStorage");
+    LOGI("load_gl_funcs: blit=%p bindfb=%p genfb=%p",
+         s_pfn_glBlitFramebuffer, s_pfn_glBindFramebuffer, s_pfn_glGenFramebuffers);
+}
+
+#define GL_BLIT_FB     ((PFN_GLBLITFRAMEBUFFER)s_pfn_glBlitFramebuffer)
+#define GL_BIND_FB     ((PFN_GLBINDFRAMEBUFFER)s_pfn_glBindFramebuffer)
+#define GL_GEN_FB      ((PFN_GLGENFRAMEBUFFERS)s_pfn_glGenFramebuffers)
+#define GL_DEL_FB      ((PFN_GLDELETEFRAMEBUFFERS)s_pfn_glDeleteFramebuffers)
+#define GL_FB_TEX2D    ((PFN_GLFRAMEBUFFERTEXTURE2D)s_pfn_glFramebufferTexture2D)
+#define GL_FB_RBO      ((PFN_GLFRAMEBUFFERRENDERBUFFER)s_pfn_glFramebufferRenderbuffer)
+#define GL_FB_STATUS   ((PFN_GLCHECKFRAMEBUFFERSTATUS)s_pfn_glCheckFramebufferStatus)
+#define GL_GEN_RBO     ((PFN_GLGENRENDERBUFFERS)s_pfn_glGenRenderbuffers)
+#define GL_RBO_STORAGE ((PFN_GLRENDERBUFFERSTORAGE)s_pfn_glRenderbufferStorage)
 
 static void* resolve_gl_proc(const char* sym) {
     if (!sym) return nullptr;
@@ -429,19 +464,19 @@ void ultraman_video_present() {
     if (vpH <= 0) vpH = 1;
 
     PSTEP(3);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    GL_BIND_FB(GL_READ_FRAMEBUFFER, g_hw_fbo);
+    GL_BIND_FB(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, winW, winH);
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
     PSTEP(4);
-    glBlitFramebuffer(
+    GL_BLIT_FB(
         0, g_hw_h, g_hw_w, 0,
         vpX, vpY, vpX + vpW, vpY + vpH,
         GL_COLOR_BUFFER_BIT, GL_LINEAR);
     PSTEP(5);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_BIND_FB(GL_FRAMEBUFFER, 0);
 
     PSTEP(6);
     if (!eglSwapBuffers(g_dpy, g_sfc)) return;
@@ -468,7 +503,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     int winH = ANativeWindow_getHeight(g_win);
     if (winW <= 0 || winH <= 0) return;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_BIND_FB(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_sw_tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)w, (GLsizei)h, 0,
@@ -562,6 +597,8 @@ void ultraman_video_start() {
     g_view_w = ANativeWindow_getWidth(g_win);
     g_view_h = ANativeWindow_getHeight(g_win);
     LOGI("video ready %dx%d", g_view_w, g_view_h);
+
+    load_gl_funcs();
 
     {
         void* blit = resolve_gl_proc("glBlitFramebuffer");
