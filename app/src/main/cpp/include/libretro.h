@@ -140,6 +140,16 @@ struct retro_system_av_info {
     struct retro_game_geometry geometry;
     struct retro_system_timing timing;
 };
+enum retro_log_level {
+    RETRO_LOG_DEBUG = 0,
+    RETRO_LOG_INFO  = 1,
+    RETRO_LOG_WARN  = 2,
+    RETRO_LOG_ERROR = 3,
+};
+typedef void (*retro_log_printf_t)(enum retro_log_level level, const char *fmt, ...);
+struct retro_log_callback {
+    retro_log_printf_t log;
+};
 struct retro_variable {
     const char *key;
     const char *value;

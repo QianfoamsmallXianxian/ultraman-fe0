@@ -86,6 +86,23 @@ static const char *lookup_var(const char *key) {
     return nullptr;
 }
 
+#include <cstdarg>
+static void core_log_cb(enum retro_log_level level, const char *fmt, ...) {
+    if (!fmt) return;
+    int prio = ANDROID_LOG_INFO;
+    switch (level) {
+        case RETRO_LOG_DEBUG: prio = ANDROID_LOG_DEBUG; break;
+        case RETRO_LOG_INFO:  prio = ANDROID_LOG_INFO;  break;
+        case RETRO_LOG_WARN:  prio = ANDROID_LOG_WARN;  break;
+        case RETRO_LOG_ERROR: prio = ANDROID_LOG_ERROR; break;
+        default: break;
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    __android_log_vprint(prio, "PPSSPPcore", fmt, ap);
+    va_end(ap);
+}
+
 static bool env_cb(unsigned cmd, void *data) {
     LOGI("env_cb cmd=%u", cmd);
     switch (cmd) {
@@ -248,8 +265,8 @@ static bool env_cb(unsigned cmd, void *data) {
             LOGW("GET_VFS_INTERFACE not impl");
             return false;
         case 0x10033:
-            *(bool *)data = true;
-            return true;
+            LOGW("GET_INPUT_BITMASKS: return false");
+            return false;
         case RETRO_ENVIRONMENT_SET_MESSAGE:
             return true;
         case RETRO_ENVIRONMENT_SHUTDOWN: {
@@ -262,9 +279,14 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
             *(unsigned *)data = 1;
             return true;
-        case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
-            LOGI("GET_LOG_INTERFACE: no impl");
-            return false;
+        case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: {
+            struct retro_log_callback *cb = (struct retro_log_callback *)data;
+            if (cb) {
+                cb->log = core_log_cb;
+                LOGI("GET_LOG_INTERFACE: provided core_log_cb");
+            }
+            return true;
+        }
         case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
             LOGI("GET_VFS_INTERFACE: no impl");
             return false;
