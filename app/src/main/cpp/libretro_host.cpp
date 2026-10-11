@@ -414,6 +414,52 @@ void ultraman_start_loop() {
     });
 }
 
+
+
+static std::thread s_render_thread;
+
+void ultraman_pause_render() {
+    LOGI("pause_render");
+    if (s_run.exchange(false)) {
+        if (s_thread.joinable()) s_thread.join();
+        LOGI("render paused (core still loaded)");
+    }
+}
+
+void ultraman_resume_render() {
+    LOGI("resume_render");
+    if (!s_loaded.load()) {
+        LOGW("resume: core not loaded, skip");
+        return;
+    }
+    if (s_run.exchange(true)) {
+        LOGW("resume: already running");
+        return;
+    }
+
+    extern bool ultraman_video_make_current();
+    extern void ultraman_video_present();
+
+    s_thread = std::thread([]{
+        LOGI("resume thread started");
+        if (s_hw_render) {
+            ultraman_video_make_current();
+        }
+        const double fps = 59.94;
+        const auto frame_dur = std::chrono::microseconds((long long)(1000000.0 / fps));
+        auto next = std::chrono::steady_clock::now();
+        while (s_run.load()) {
+            retro_run();
+            if (s_hw_render) ultraman_video_present();
+            next += frame_dur;
+            auto now = std::chrono::steady_clock::now();
+            if (next > now) std::this_thread::sleep_until(next);
+            else next = now;
+        }
+        LOGI("resume thread ended");
+    });
+}
+
 void ultraman_stop_loop() {
     if (!s_run.exchange(false)) return;
     LOGI("stop loop: joining thread");

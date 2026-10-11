@@ -25,6 +25,8 @@ object EmulatorBridge {
     external fun nativeLoadGame(path: String): Boolean
     external fun nativeStart()
     external fun nativeStop()
+    external fun nativePause()
+    external fun nativeResume()
     external fun nativeSetSurface(surface: Surface?)
     external fun nativeSetAudioEnabled(enabled: Boolean)
     external fun nativeKey(port: Int, id: Int, down: Boolean)

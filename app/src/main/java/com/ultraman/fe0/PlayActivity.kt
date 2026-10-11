@@ -195,13 +195,23 @@ class PlayActivity : AppCompatActivity() {
         super.onPause()
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
-            EmulatorBridge.nativeStop()
+            EmulatorBridge.nativePause()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (loaded) {
+            EmulatorBridge.nativeResume()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (loaded) EmulatorBridge.nativeStop()
+        if (loaded) {
+            EmulatorBridge.nativeStop()
+            loaded = false
+        }
     }
 
     @Deprecated("Deprecated in Java")

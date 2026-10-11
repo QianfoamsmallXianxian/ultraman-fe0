@@ -657,41 +657,75 @@ void ultraman_video_stop() {
     g_sfc = EGL_NO_SURFACE;
     g_cfg = nullptr;
     g_current_sfc = EGL_NO_SURFACE;
+    g_win_w = 0;
+    g_win_h = 0;
 }
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     bool need_start = false;
+    bool need_recreate = false;
+
     {
         GLLOCK;
-        ANativeWindow* new_win = nullptr;
-        if (s) new_win = ANativeWindow_fromSurface(env, s);
+        ANativeWindow* new_win = s ? ANativeWindow_fromSurface(env, s) : nullptr;
 
-        if (new_win == g_win && g_win != nullptr) {
-            LOGI("surface %p unchanged, skip release/acquire", g_win);
-            if (s && !g_video_ready.load()) need_start = true;
-            if (s == nullptr) g_surface_ok.store(false);
+        if (new_win == g_win) {
+            if (new_win) ANativeWindow_release(new_win);
+            if (!s) {
+                g_surface_ok.store(false);
+                LOGI("surface null (unchanged)");
+            }
             return;
         }
+
+        g_surface_ok.store(false);
 
         if (g_win) {
             ANativeWindow_release(g_win);
             g_win = nullptr;
         }
-        if (s) {
-            g_win = new_win;
-            if (g_win) {
-                int nw = ANativeWindow_getWidth(g_win);
-                int nh = ANativeWindow_getHeight(g_win);
-                g_win_w = nw;
-                g_win_h = nh;
-                LOGI("surface %p %dx%d", g_win, nw, nh);
+
+        if (g_video_ready.load() && g_dpy != EGL_NO_DISPLAY) {
+            eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            g_current_sfc = EGL_NO_SURFACE;
+            if (g_sfc != EGL_NO_SURFACE) {
+                eglDestroySurface(g_dpy, g_sfc);
+                g_sfc = EGL_NO_SURFACE;
             }
-            if (g_win && !g_video_ready.load()) need_start = true;
+        }
+
+        if (new_win) {
+            g_win = new_win;
+            g_win_w = ANativeWindow_getWidth(g_win);
+            g_win_h = ANativeWindow_getHeight(g_win);
+            LOGI("surface %p %dx%d", g_win, g_win_w, g_win_h);
+
+            if (g_video_ready.load() && g_dpy != EGL_NO_DISPLAY && g_cfg) {
+                need_recreate = true;
+            } else if (!g_video_ready.load()) {
+                need_start = true;
+            }
         } else {
             LOGI("surface null");
-            g_surface_ok.store(false);
         }
     }
+
+    if (need_recreate) {
+        GLLOCK;
+        g_sfc = eglCreateWindowSurface(g_dpy, g_cfg, g_win, nullptr);
+        if (g_sfc != EGL_NO_SURFACE) {
+            if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+                g_current_sfc = g_sfc;
+                g_surface_ok.store(true);
+                LOGI("EGL surface recreated OK");
+            } else {
+                LOGE("EGL makeCurrent failed after recreate");
+            }
+        } else {
+            LOGE("eglCreateWindowSurface failed 0x%x", eglGetError());
+        }
+    }
+
     if (need_start) {
         LOGI("surface arrived: start EGL");
         ultraman_video_start();
