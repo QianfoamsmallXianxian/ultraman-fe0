@@ -87,6 +87,7 @@ static const char *lookup_var(const char *key) {
 }
 
 static bool env_cb(unsigned cmd, void *data) {
+    LOGI("env_cb cmd=%u", cmd);
     switch (cmd) {
         case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
             return true;
