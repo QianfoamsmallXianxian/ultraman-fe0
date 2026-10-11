@@ -42,6 +42,7 @@ static int s_backend = 0;
 static int s_render_w = 960;
 static int s_render_h = 544;
 static void (*s_core_ctx_reset)() = nullptr;
+static bool s_pending_ctx_reset = false;
 static void (*s_core_ctx_destroy)() = nullptr;
 static void (*s_deferred_reset_cb)() = nullptr;
 
@@ -188,44 +189,47 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
-            if (!cb) {
-                LOGE("SET_HW_RENDER: null cb");
-                return false;
-            }
+            if (!cb) { LOGE("SET_HW_RENDER: null cb"); return false; }
             LOGI("SET_HW_RENDER req type=%d depth=%d stencil=%d ver=%u",
                  cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0, cb->version);
 
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGW("Vulkan refused");
-                return false;
+                LOGW("Vulkan refused"); return false;
             }
             int requested = cb->context_type;
             if (requested != RETRO_HW_CONTEXT_OPENGL_ES3 &&
                 requested != RETRO_HW_CONTEXT_OPENGL_ES2 &&
                 requested != RETRO_HW_CONTEXT_OPENGL_CORE &&
                 requested != RETRO_HW_CONTEXT_OPENGL) {
-                LOGE("HW type %d unsupported", requested);
-                return false;
+                LOGE("HW type %d unsupported", requested); return false;
             }
 
-            /* 前端填全部回调（核心会主动调 context_reset） */
+            s_core_ctx_reset   = cb->context_reset;
+            s_core_ctx_destroy = cb->context_destroy;
+            LOGI("saved core ctx_reset=%p ctx_destroy=%p",
+                 (void*)s_core_ctx_reset, (void*)s_core_ctx_destroy);
+
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-            cb->context_reset           = ours->context_reset;
-            cb->context_destroy         = ours->context_destroy;
             cb->get_current_framebuffer = ours->get_current_framebuffer;
             cb->get_proc_address        = ours->get_proc_address;
             cb->depth                   = true;
             cb->stencil                 = true;
-            cb->bottom_left_origin      = false;
-            cb->version                 = 3;
-            cb->cache_context           = false;
-            cb->debug_context           = false;
 
             s_hw_render = true;
-            LOGI("HW accepted type=%d ver=%u", cb->context_type, cb->version);
+            LOGI("HW accepted, filled get_fbo/get_proc");
 
-            /* 不在这里创建 FBO！让核心调 get_current_framebuffer() 拿到 0，
-               核心会主动调 context_reset()，我们那时才创建 FBO */
+            if (ultraman_video_is_ready()) {
+                LOGI("video ready: calling core ctx_reset immediate");
+                ultraman_video_create_fbo_now();
+                if (s_core_ctx_reset) {
+                    LOGI(">>> calling core ctx_reset (immediate) <<<");
+                    s_core_ctx_reset();
+                    LOGI(">>> core ctx_reset done <<<");
+                }
+            } else {
+                LOGW("video not ready: ctx_reset deferred");
+                s_pending_ctx_reset = true;
+            }
             return true;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
@@ -419,6 +423,11 @@ void ultraman_stop_loop() {
     LOGI("stop loop: thread joined");
 
     if (s_loaded.exchange(false)) {
+        if (s_core_ctx_destroy) {
+            LOGI(">>> calling core ctx_destroy <<<");
+            s_core_ctx_destroy();
+            s_core_ctx_destroy = nullptr;
+        }
         LOGI("stop loop: unload game");
         retro_unload_game();
         LOGI("stop loop: deinit core");
@@ -497,4 +506,12 @@ void ultraman_call_core_ctx_reset() {
 
 void ultraman_on_video_ready() {
     LOGI("video_ready: video became ready");
+    if (s_pending_ctx_reset && s_core_ctx_reset) {
+        LOGI(">>> calling deferred core ctx_reset <<<");
+        extern bool ultraman_video_create_fbo_now();
+        ultraman_video_create_fbo_now();
+        s_core_ctx_reset();
+        s_pending_ctx_reset = false;
+        LOGI(">>> deferred core ctx_reset done <<<");
+    }
 }

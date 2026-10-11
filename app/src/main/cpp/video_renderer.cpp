@@ -631,9 +631,6 @@ void ultraman_video_start() {
 
     load_gl_funcs();
 
-    extern void ultraman_call_core_ctx_reset();
-    ultraman_call_core_ctx_reset();
-
     {
         void* blit = resolve_gl_proc("glBlitFramebuffer");
         void* bindfb = resolve_gl_proc("glBindFramebuffer");
