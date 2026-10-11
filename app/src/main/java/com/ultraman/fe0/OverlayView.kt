@@ -16,12 +16,16 @@ class OverlayView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
+    private val density = resources.displayMetrics.density
+    private val scaledDensity = resources.displayMetrics.scaledDensity
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fpsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = 36f
+        textAlign = Paint.Align.LEFT
+        textSize = 13f * scaledDensity
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-        setShadowLayer(4f, 0f, 2f, 0xAA000000.toInt())
+        setShadowLayer(5f, 0f, 2f, 0xDD000000.toInt())
     }
     private val held = HashMap<Int, List<Int>>()
     private val buttons: MutableList<ButtonDef> = ButtonConfigManager(context).load()
@@ -38,9 +42,7 @@ class OverlayView @JvmOverloads constructor(
             val count = EmulatorBridge.nativeGetFrameCount()
             if (lastTime > 0) {
                 val dt = now - lastTime
-                if (dt > 0) {
-                    fpsValue = (count - lastFrameCount) * 1000f / dt
-                }
+                if (dt > 0) fpsValue = (count - lastFrameCount) * 1000f / dt
             }
             lastFrameCount = count
             lastTime = now
@@ -74,10 +76,8 @@ class OverlayView @JvmOverloads constructor(
         for (b in buttons) {
             val dx = x - px(b)
             val dy = y - py(b)
-            val r = pr(b) * 2.2f
-            if (dx * dx + dy * dy < r * r) {
-                res.add(b.id)
-            }
+            val r = pr(b) * 3.0f
+            if (dx * dx + dy * dy < r * r) res.add(b.id)
         }
         return res
     }
@@ -89,10 +89,8 @@ class OverlayView @JvmOverloads constructor(
                 val pid = event.getPointerId(i)
                 val hits = hitAll(event.getX(i), event.getY(i))
                 val prev = held[pid] ?: emptyList()
-
                 for (old in prev) if (old !in hits) EmulatorBridge.nativeKey(0, old, false)
                 for (nw in hits) if (nw !in prev) EmulatorBridge.nativeKey(0, nw, true)
-
                 held[pid] = hits
                 parent?.requestDisallowInterceptTouchEvent(true)
                 invalidate()
@@ -102,7 +100,6 @@ class OverlayView @JvmOverloads constructor(
                     val pid = event.getPointerId(i)
                     val hits = hitAll(event.getX(i), event.getY(i))
                     val prev = held[pid] ?: emptyList()
-
                     for (old in prev) if (old !in hits) EmulatorBridge.nativeKey(0, old, false)
                     for (nw in hits) if (nw !in prev) EmulatorBridge.nativeKey(0, nw, true)
                     held[pid] = hits
@@ -156,9 +153,10 @@ class OverlayView @JvmOverloads constructor(
         }
 
         if (cfg.showFps) {
-            val text = "FPS ${fpsValue.toInt()}"
-            val margin = 40f
-            canvas.drawText(text, width - margin - 20f, margin + 30f, fpsPaint)
+            val text = "FPS " + fpsValue.toInt()
+            val padX = 168f * density
+            val padY = 55f * density
+            canvas.drawText(text, padX, padY, fpsPaint)
         }
     }
 }

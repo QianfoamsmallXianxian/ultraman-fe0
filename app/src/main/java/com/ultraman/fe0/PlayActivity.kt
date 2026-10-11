@@ -1,19 +1,20 @@
 package com.ultraman.fe0
 
 import android.app.AlertDialog
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import java.io.FileOutputStream
 
@@ -29,7 +30,18 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
 
         val root = FrameLayout(this)
         view = EmulatorView(this)
@@ -38,20 +50,21 @@ class PlayActivity : AppCompatActivity() {
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
         val menuBtn = Button(this)
         menuBtn.text = "菜单"
-        menuBtn.alpha = 0.6f
-        menuBtn.textSize = 12f
+        menuBtn.alpha = 0.55f
+        menuBtn.textSize = 11f
         menuBtn.setBackgroundColor(0xAA000000.toInt())
         menuBtn.setTextColor(0xFFFFFFFF.toInt())
         menuBtn.setOnClickListener { showMenu() }
-        val lp = FrameLayout.LayoutParams(160, 90)
-        lp.leftMargin = 30
-        lp.topMargin = 30
+        val lp = FrameLayout.LayoutParams(130, 70)
+        lp.leftMargin = 20
+        lp.topMargin = 20
         root.addView(menuBtn, lp)
         setContentView(root)
 
-        window.decorView.post { applyFullscreen() }
-        window.decorView.postDelayed({ applyFullscreen() }, 300)
-        window.decorView.postDelayed({ applyFullscreen() }, 1000)
+        hideSystemBars()
+        window.decorView.post { hideSystemBars() }
+        window.decorView.postDelayed({ hideSystemBars() }, 300)
+        window.decorView.postDelayed({ hideSystemBars() }, 1000)
 
         gamePath = intent.dataString
         if (gamePath.isNullOrEmpty()) { finish(); return }
@@ -71,8 +84,11 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            Log.i("UltramanFE0", "surface recreated: resume")
-            if (loaded) EmulatorBridge.nativeResume()
+            Log.i("UltramanFE0", "surface recreated: reset ctx + resume")
+            if (loaded) {
+                EmulatorBridge.nativeResetContext()
+                EmulatorBridge.nativeResume()
+            }
         }
 
         view.onSurfaceReady = surfaceReady@{
@@ -109,7 +125,7 @@ class PlayActivity : AppCompatActivity() {
             dir.mkdirs()
             val dst = File(dir, "game.iso")
             if (dst.exists() && dst.length() > 0) {
-                Log.i("UltramanFE0", "iso cached: ${dst.absolutePath} (${dst.length()} bytes)")
+                Log.i("UltramanFE0", "iso cached: ${dst.absolutePath}")
                 return dst.absolutePath
             }
             Log.i("UltramanFE0", "copying iso")
@@ -133,32 +149,22 @@ class PlayActivity : AppCompatActivity() {
         }
     }
 
-    private fun applyFullscreen() {
+    private fun hideSystemBars() {
         try {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val c = WindowInsetsControllerCompat(window, window.decorView)
+            c.hide(WindowInsetsCompat.Type.systemBars())
+            c.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                window.attributes.layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                window.insetsController?.let {
-                    it.hide(WindowInsets.Type.systemBars())
-                    it.systemBarsBehavior =
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                window.decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    or View.SYSTEM_UI_FLAG_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                )
-            }
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            )
         } catch (_: Throwable) {}
     }
 
@@ -216,12 +222,13 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        hideSystemBars()
         if (loaded) EmulatorBridge.nativeResume()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyFullscreen()
+        if (hasFocus) hideSystemBars()
     }
 
     override fun onDestroy() {
