@@ -82,6 +82,8 @@ void ultraman_set_options(int r, bool v, bool a) {
     if (s_vars.find("ppsspp_backend") == s_vars.end())
         s_vars["ppsspp_backend"] = "OpenGL";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
+    s_vars["ppsspp_frame_skip"] = "1";
+    s_vars["ppsspp_auto_frameskip"] = "enabled";
     s_vars["ppsspp_language"] = "Simplified Chinese";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;

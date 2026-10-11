@@ -25,6 +25,8 @@ class EmulatorView @JvmOverloads constructor(
     init {
         holder.addCallback(this)
         setZOrderMediaOverlay(false)
+        setWillNotDraw(true)
+        holder.setFormat(android.graphics.PixelFormat.RGBA_8888)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

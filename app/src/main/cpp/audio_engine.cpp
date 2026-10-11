@@ -3,6 +3,9 @@
 #include <android/log.h>
 #include <atomic>
 #include <cstring>
+#include <sched.h>
+#include <sys/resource.h>
+#include <unistd.h>
 #include "ulog.h"
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO, "UltramanFE0", __VA_ARGS__)
 
@@ -59,6 +62,10 @@ void ultraman_set_audio_buffer(int level) {
 
 void ultraman_audio_start(double sr) {
     LOGI("audio %.0f", sr);
+    struct sched_param param;
+    param.sched_priority = 0;
+    sched_setscheduler(0, SCHED_FIFO, &param);
+    setpriority(PRIO_PROCESS, 0, -3);
     slCreateEngine(&g_eng_obj, 0, nullptr, 0, nullptr, nullptr);
     (*g_eng_obj)->Realize(g_eng_obj, SL_BOOLEAN_FALSE);
     (*g_eng_obj)->GetInterface(g_eng_obj, SL_IID_ENGINE, &g_eng);
