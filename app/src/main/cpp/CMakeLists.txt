@@ -8,6 +8,7 @@ set_target_properties(ppsspp_core PROPERTIES
     IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libppsspp_libretro_android.so)
 add_library(ultraman_bridge SHARED
     ulog.cpp
+    crash_handler.cpp
     native_bridge.cpp
     libretro_host.cpp
     video_renderer.cpp
