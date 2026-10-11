@@ -248,7 +248,7 @@ static uintptr_t hw_get_current_fbo() {
 }
 
 static std::atomic<int> s_proc_count{0};
-static std::atomic<int> s_proc_count{0};
+
 
 static retro_proc_address_t hw_get_proc(const char* sym) {
     if (!sym) return nullptr;
@@ -319,7 +319,6 @@ void ultraman_video_set_hw(bool hw, int w, int h) {
 
 static std::atomic<int> g_present_step{0};
 void ultraman_video_present() {
-    int step = 0;
 #define PSTEP(n) do { g_present_step.store(n); } while(0)
 #define PSTEP_END
 
