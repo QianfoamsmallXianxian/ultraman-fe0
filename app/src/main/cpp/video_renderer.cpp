@@ -501,9 +501,10 @@ void ultraman_video_present() {
     glClear(GL_COLOR_BUFFER_BIT);
     PSTEP(4);
     GL_BLIT_FB(
-        0, g_hw_h, g_hw_w, 0,
-        vpX, vpY, vpX + vpW, vpY + vpH,
-        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        0, 0, g_hw_w, g_hw_h,
+        0, 0, winW, winH,
+        GL_COLOR_BUFFER_BIT, GL_LINEAR
+    );
     PSTEP(5);
     GL_BIND_FB(GL_FRAMEBUFFER, 0);
 

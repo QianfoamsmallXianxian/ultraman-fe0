@@ -1,6 +1,7 @@
 #include <android/log.h>
 #include <atomic>
 #include <thread>
+#include <chrono>
 #include <string>
 #include <cstring>
 #include <cstdio>
@@ -388,26 +389,26 @@ void ultraman_start_loop() {
         if (s_hw_render) {
             LOGI("loop: binding EGL context");
             ultraman_video_make_current();
-            extern void ultraman_video_dump_gl_errors();
-            ultraman_video_dump_gl_errors();
         }
+
+        const double fps = 59.94;
+        const auto frame_dur = std::chrono::microseconds((long long)(1000000.0 / fps));
+        auto next = std::chrono::steady_clock::now();
+
         while (s_run.load()) {
             if (!s_run.load()) break;
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
-            if (s_hw_render) {
-                ultraman_video_present();
-                if (f <= 6) {
-                    LOGI("frame %d done, present step=%d", f, ultraman_video_present_step());
-                }
+            if (s_hw_render) ultraman_video_present();
+            if (f <= 3 || f == 60 || f == 120 || f == 300) {
+                LOGI("frame %d done", f);
             }
-            if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
-                LOGI("frame %d", f);
-            }
-            if (!s_run.load()) {
-                LOGI("loop: stop flag set, exiting");
-                break;
-            }
+            if (!s_run.load()) break;
+
+            next += frame_dur;
+            auto now = std::chrono::steady_clock::now();
+            if (next > now) std::this_thread::sleep_until(next);
+            else next = now;
         }
         LOGI("loop thread ended");
     });
