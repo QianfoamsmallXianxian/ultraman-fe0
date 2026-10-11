@@ -41,8 +41,6 @@ static bool s_hw_render = false;
 static int s_backend = 0;
 static int s_render_w = 960;
 static int s_render_h = 544;
-static void (*s_core_ctx_reset)() = nullptr;
-static void (*s_core_ctx_destroy)() = nullptr;
 static void (*s_deferred_reset_cb)() = nullptr;
 
 static const char *resolution_for(int m) {
@@ -208,14 +206,9 @@ static bool env_cb(unsigned cmd, void *data) {
                 return false;
             }
 
-            /* 关键：保存核心提供的 context_reset / context_destroy */
-            s_core_ctx_reset   = cb->context_reset;
-            s_core_ctx_destroy = cb->context_destroy;
-            LOGI("saved core ctx_reset=%p ctx_destroy=%p",
-                 (void*)s_core_ctx_reset, (void*)s_core_ctx_destroy);
-
-            /* 填充前端提供的两个回调，不改核心的 context_reset/destroy */
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
+            cb->context_reset           = ours->context_reset;
+            cb->context_destroy         = ours->context_destroy;
             cb->get_current_framebuffer = ours->get_current_framebuffer;
             cb->get_proc_address        = ours->get_proc_address;
             cb->depth                   = true;
@@ -230,13 +223,6 @@ static bool env_cb(unsigned cmd, void *data) {
 
             if (ultraman_video_is_ready()) {
                 ultraman_video_create_fbo_now();
-                if (s_core_ctx_reset) {
-                    LOGI(">>> invoking core context_reset <<<");
-                    s_core_ctx_reset();
-                    LOGI(">>> core context_reset done <<<");
-                }
-            } else {
-                LOGW("video not ready, will invoke ctx_reset later");
             }
             return true;
         }
@@ -431,12 +417,6 @@ void ultraman_stop_loop() {
     LOGI("stop loop: thread joined");
 
     if (s_loaded.exchange(false)) {
-        if (s_core_ctx_destroy) {
-            LOGI(">>> invoking core context_destroy <<<");
-            s_core_ctx_destroy();
-            LOGI(">>> core context_destroy done <<<");
-            s_core_ctx_destroy = nullptr;
-        }
         LOGI("stop loop: unload game");
         retro_unload_game();
         LOGI("stop loop: deinit core");
@@ -503,11 +483,4 @@ bool ultraman_load_sram(const char *path) {
 
 void ultraman_on_video_ready() {
     LOGI("video_ready: video became ready");
-    if (s_core_ctx_reset && s_hw_render) {
-        LOGI(">>> invoking core context_reset (deferred) <<<");
-        s_core_ctx_reset();
-        LOGI(">>> core context_reset done <<<");
-    } else {
-        LOGI("video_ready: no pending core ctx_reset");
-    }
 }
