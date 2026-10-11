@@ -6,8 +6,8 @@
 #include <cstring>
 #include <ctime>
 #include <cstdlib>
-#include <execinfo.h>
 #include <dlfcn.h>
+#include <unwind.h>
 
 static char g_crash_path[512] = {0};
 static int  g_crash_fd = -1;
@@ -28,7 +28,43 @@ static void wdec(int fd, long v) {
     if (n > 0) write(fd, b, n);
 }
 
+struct BtState {
+    int fd;
+    int idx;
+    int max;
+};
+
+static _Unwind_Reason_Code unwind_cb(struct _Unwind_Context* ctx, void* arg) {
+    BtState* st = (BtState*)arg;
+    if (st->idx >= st->max) return _URC_END_OF_STACK;
+    uintptr_t pc = _Unwind_GetIP(ctx);
+    if (pc == 0) return _URC_NO_REASON;
+
+    char line[32];
+    int n = snprintf(line, sizeof(line), "#%02d ", st->idx);
+    if (n > 0) write(st->fd, line, n);
+    whex(st->fd, (unsigned long)pc);
+    wstr(st->fd, " ");
+
+    Dl_info dl;
+    memset(&dl, 0, sizeof(dl));
+    if (dladdr((void*)pc, &dl) && dl.dli_fname) {
+        wstr(st->fd, dl.dli_fname);
+        wstr(st->fd, " (");
+        wstr(st->fd, dl.dli_sname ? dl.dli_sname : "?");
+        wstr(st->fd, ")");
+    } else {
+        wstr(st->fd, "?");
+    }
+    wstr(st->fd, "\n");
+
+    st->idx++;
+    return _URC_NO_REASON;
+}
+
 static void crash_handler(int sig, siginfo_t* info, void* ucontext) {
+    (void)ucontext;
+
     if (g_crash_fd < 0 && g_crash_path[0]) {
         g_crash_fd = open(g_crash_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     }
@@ -40,36 +76,18 @@ static void crash_handler(int sig, siginfo_t* info, void* ucontext) {
     if (info) {
         wstr(fd, "fault_addr=");
         whex(fd, (unsigned long)info->si_addr);
-        wstr(fd, "\ncode="); wdec(fd, info->si_code);
-        wstr(fd, "\n");
+        wstr(fd, "\ncode="); wdec(fd, info->si_code); wstr(fd, "\n");
     }
     wstr(fd, "time="); wdec(fd, (long)time(nullptr)); wstr(fd, "\n");
     wstr(fd, "---- backtrace ----\n");
 
-    void* buffer[64];
-    int count = backtrace(buffer, 64);
-    for (int i = 0; i < count; i++) {
-        char line[32];
-        int n = snprintf(line, sizeof(line), "#%02d ", i);
-        if (n > 0) write(fd, line, n);
+    BtState st;
+    st.fd = fd;
+    st.idx = 0;
+    st.max = 64;
+    _Unwind_Backtrace(unwind_cb, &st);
 
-        whex(fd, (unsigned long)buffer[i]);
-        wstr(fd, " ");
-
-        Dl_info dl;
-        memset(&dl, 0, sizeof(dl));
-        if (dladdr(buffer[i], &dl) && dl.dli_fname) {
-            wstr(fd, dl.dli_fname);
-            wstr(fd, " (");
-            wstr(fd, dl.dli_sname ? dl.dli_sname : "?");
-            wstr(fd, ")");
-        } else {
-            wstr(fd, "?");
-        }
-        wstr(fd, "\n");
-    }
     wstr(fd, "---- end ----\n");
-
     fsync(fd);
 
     signal(sig, SIG_DFL);

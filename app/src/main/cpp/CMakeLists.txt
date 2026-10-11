@@ -22,4 +22,4 @@ target_link_libraries(ultraman_bridge
     EGL
     GLESv3
     OpenSLES)
-target_compile_options(ultraman_bridge PRIVATE -Wall -Wextra -fvisibility=hidden)
+target_compile_options(ultraman_bridge PRIVATE -Wall -Wextra -fvisibility=hidden -funwind-tables -fno-omit-frame-pointer)
