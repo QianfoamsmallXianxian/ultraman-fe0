@@ -476,6 +476,12 @@ void ultraman_start_loop() {
     ultraman_video_release_current();
 
     s_thread = std::thread([]{
+        {
+            struct sched_param sp{};
+            sp.sched_priority = 0;
+            sched_setscheduler(0, SCHED_FIFO, &sp);
+            setpriority(PRIO_PROCESS, 0, -3);
+        }
         LOGI("loop thread started");
         if (s_hw_render) {
             LOGI("loop: binding EGL context");
@@ -515,6 +521,7 @@ void ultraman_start_loop() {
             if (!s_run.load()) break;
 
             next += std::chrono::nanoseconds(frame_ns);
+            { auto _n = std::chrono::steady_clock::now(); if (next < _n) next = _n + std::chrono::nanoseconds(frame_ns); }
             auto now = std::chrono::steady_clock::now();
             auto diff = next - now;
             auto diff_us = std::chrono::duration_cast<std::chrono::microseconds>(diff).count();
@@ -590,6 +597,7 @@ void ultraman_resume_render() {
             perf_frame((_t3 - _t0), (_t1 - _t0), (_tv1 - _tv0), (_t3 - _t2), (int)(s_frames.load()));
             next += frame_dur;
             auto now = std::chrono::steady_clock::now();
+            if (next < now) next = now + frame_dur;
             if (next > now) std::this_thread::sleep_until(next);
             else next = now;
         }
