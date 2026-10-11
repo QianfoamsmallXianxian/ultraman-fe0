@@ -48,6 +48,14 @@ static std::mutex         g_queue_mtx;
 static struct retro_vulkan_context g_retro_ctx = {};
 static struct retro_hw_render_interface_vulkan g_retro_iface = {};
 
+static void vk_barrier_image(VkCommandBuffer cmd, VkImage img,
+                              VkImageLayout oldLayout, VkImageLayout newLayout,
+                              VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                              VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage);
+
+static void vk_blit_image_to_swapchain(VkCommandBuffer cmd, VkImage src, VkImage dst);
+
+
 static VkImageView g_src_view       = VK_NULL_HANDLE;
 static VkImageLayout g_src_layout   = VK_IMAGE_LAYOUT_UNDEFINED;
 static std::vector<VkSemaphore> g_wait_sems;
