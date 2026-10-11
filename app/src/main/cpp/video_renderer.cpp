@@ -296,7 +296,7 @@ static retro_proc_address_t hw_get_proc(const char* sym) {
 struct retro_hw_render_callback* ultraman_get_hw_cb() {
     static struct retro_hw_render_callback cb;
     memset(&cb, 0, sizeof(cb));
-    cb.context_type          = RETRO_HW_CONTEXT_OPENGL_ES2;
+    cb.context_type          = RETRO_HW_CONTEXT_OPENGL_ES3;
     cb.context_reset         = hw_context_reset;
     cb.get_current_framebuffer = hw_get_current_fbo;
     cb.get_proc_address      = hw_get_proc;
