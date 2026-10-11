@@ -320,7 +320,7 @@ static void cb_set_signal_semaphore(void* h, VkSemaphore s) {
 }
 
 struct retro_hw_render_interface_vulkan* vk_get_retro_interface() {
-    g_retro_iface.interface_type = RETRO_HW_RENDER_INTERFACE_VULKAN;
+    g_retro_iface.interface_type = static_cast<enum retro_hw_render_interface_type>(RETRO_HW_RENDER_INTERFACE_VULKAN);
     g_retro_iface.interface_version = RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION;
     g_retro_iface.handle = nullptr;
     g_retro_iface.set_image = cb_set_image;

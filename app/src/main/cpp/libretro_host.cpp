@@ -598,6 +598,8 @@ void ultraman_on_video_ready() {
 
 
 int64_t ultraman_get_frame_count() {
+    (void)s_pending_ctx_reset;
+    (void)s_deferred_reset_cb;
     return (int64_t)s_frames.load();
 }
 
