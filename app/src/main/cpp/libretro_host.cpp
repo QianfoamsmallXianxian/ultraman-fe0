@@ -221,9 +221,8 @@ static bool env_cb(unsigned cmd, void *data) {
             s_hw_render = true;
             LOGI("HW accepted type=%d ver=%u", cb->context_type, cb->version);
 
-            if (ultraman_video_is_ready()) {
-                ultraman_video_create_fbo_now();
-            }
+            /* 不在这里创建 FBO！让核心调 get_current_framebuffer() 拿到 0，
+               核心会主动调 context_reset()，我们那时才创建 FBO */
             return true;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
