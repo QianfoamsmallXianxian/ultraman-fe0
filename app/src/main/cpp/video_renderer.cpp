@@ -626,7 +626,7 @@ void ultraman_video_start() {
         LOGE("eglMakeCurrent fail");
         return;
     }
-    eglSwapInterval(g_dpy, 1);
+    eglSwapInterval(g_dpy, 0);
 
     LOGI("GL version: %s", glGetString(GL_VERSION));
     LOGI("GL renderer: %s", glGetString(GL_RENDERER));

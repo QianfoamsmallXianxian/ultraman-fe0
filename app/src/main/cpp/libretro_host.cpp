@@ -504,7 +504,6 @@ void ultraman_start_loop() {
             int64_t _tv1 = perf_now_ns();
             int f = s_frames.fetch_add(1) + 1;
             int64_t _t2 = perf_now_ns();
-            if (s_hw_render) ultraman_video_present();
             int64_t _t3 = perf_now_ns();
             perf_frame((_t3 - _t0), (_t1 - _t0), (_tv1 - _tv0), (_t3 - _t2), (int)(s_frames.load()));
 
@@ -587,7 +586,6 @@ void ultraman_resume_render() {
             }
             int64_t _tv1 = perf_now_ns();
             int64_t _t2 = perf_now_ns();
-            if (s_hw_render) ultraman_video_present();
             int64_t _t3 = perf_now_ns();
             perf_frame((_t3 - _t0), (_t1 - _t0), (_tv1 - _tv0), (_t3 - _t2), (int)(s_frames.load()));
             next += frame_dur;
