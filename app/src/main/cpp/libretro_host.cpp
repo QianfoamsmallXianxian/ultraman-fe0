@@ -12,6 +12,57 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+
+#include <cstdarg>
+#include <ctime>
+#include <sys/stat.h>
+
+static FILE* g_perf_log = nullptr;
+static int   g_perf_count = 0;
+static int64_t g_perf_bucket_start = 0;
+static int64_t g_perf_retro_sum = 0;
+static int64_t g_perf_present_sum = 0;
+static double  g_perf_worst = 0;
+
+static int64_t perf_now_ns() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+static void perf_open() {
+    if (g_perf_log) return;
+    mkdir("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs", 0777);
+    g_perf_log = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/perf.log", "a");
+}
+static void perf_write(const char* fmt, ...) {
+    if (!g_perf_log) return;
+    va_list ap; va_start(ap, fmt);
+    vfprintf(g_perf_log, fmt, ap);
+    va_end(ap); fflush(g_perf_log);
+}
+static void perf_frame(int64_t total_ns, int64_t retro_ns, int64_t present_ns, int fno) {
+    g_perf_count++;
+    g_perf_retro_sum += retro_ns;
+    g_perf_present_sum += present_ns;
+    double ms = total_ns / 1e6;
+    if (ms > g_perf_worst) g_perf_worst = ms;
+    if (ms > 17.0)
+        perf_write("[DROP] f=%d total=%.2f retro=%.2f present=%.2f\n",
+                   fno, ms, retro_ns / 1e6, present_ns / 1e6);
+    if (fno > 0 && fno % 60 == 0) {
+        int64_t now = perf_now_ns();
+        if (g_perf_bucket_start == 0) g_perf_bucket_start = now;
+        double sec = (now - g_perf_bucket_start) / 1e9;
+        double fps = g_perf_count / (sec > 0.001 ? sec : 0.001);
+        perf_write("[F60] fps=%.1f worst=%.2fms retro_avg=%.2fms present_avg=%.2fms\n",
+                   fps, g_perf_worst,
+                   g_perf_retro_sum / (g_perf_count * 1e6),
+                   g_perf_present_sum / (g_perf_count * 1e6));
+        g_perf_count = g_perf_retro_sum = g_perf_present_sum = 0;
+        g_perf_worst = 0; g_perf_bucket_start = now;
+    }
+}
+
 #include "libretro_vulkan.h"
 #include "frame_profiler.h"
 
@@ -431,7 +482,9 @@ void ultraman_start_loop() {
 
             auto t0 = std::chrono::steady_clock::now();
 
+            int64_t _t0 = perf_now_ns();
             retro_run();
+            int64_t _t1 = perf_now_ns();
             if (g_use_vulkan == 1) {
                 extern bool vk_render_frame();
                 vk_render_frame();
@@ -439,7 +492,10 @@ void ultraman_start_loop() {
                 ultraman_video_present();
             }
             int f = s_frames.fetch_add(1) + 1;
+            int64_t _t2 = perf_now_ns();
             if (s_hw_render) ultraman_video_present();
+            int64_t _t3 = perf_now_ns();
+            perf_frame((_t3 - _t0), (_t1 - _t0), (_t3 - _t2), (int)(s_frames.load()));
 
             if (f <= 3 || f == 300 || f == 1800) {
                 auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -508,14 +564,19 @@ void ultraman_resume_render() {
         const auto frame_dur = std::chrono::microseconds((long long)(1000000.0 / fps));
         auto next = std::chrono::steady_clock::now();
         while (s_run.load()) {
+            int64_t _t0 = perf_now_ns();
             retro_run();
+            int64_t _t1 = perf_now_ns();
             if (g_use_vulkan == 1) {
                 extern bool vk_render_frame();
                 vk_render_frame();
             } else if (s_hw_render) {
                 ultraman_video_present();
             }
+            int64_t _t2 = perf_now_ns();
             if (s_hw_render) ultraman_video_present();
+            int64_t _t3 = perf_now_ns();
+            perf_frame((_t3 - _t0), (_t1 - _t0), (_t3 - _t2), (int)(s_frames.load()));
             next += frame_dur;
             auto now = std::chrono::steady_clock::now();
             if (next > now) std::this_thread::sleep_until(next);
