@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -13,6 +14,7 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
+import java.io.FileOutputStream
 
 class PlayActivity : AppCompatActivity() {
 
@@ -23,6 +25,46 @@ class PlayActivity : AppCompatActivity() {
     private var initGuard = false
     private lateinit var savesDir: File
     private var gameKey = "game"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        val root = FrameLayout(this)
+        view = EmulatorView(this)
+        root.addView(view, FrameLayout.LayoutParams(-1, -1))
+        val overlay = OverlayView(this)
+        root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
+        val menuBtn = Button(this)
+        menuBtn.text = "菜单"
+        menuBtn.alpha = 0.6f
+        menuBtn.textSize = 12f
+        menuBtn.setBackgroundColor(0xAA000000.toInt())
+        menuBtn.setTextColor(0xFFFFFFFF.toInt())
+        menuBtn.setOnClickListener { showMenu() }
+        val lp = FrameLayout.LayoutParams(160, 90)
+        lp.leftMargin = 30
+        lp.topMargin = 30
+        root.addView(menuBtn, lp)
+        setContentView(root)
+
+        if (cfg.fullscreen) window.decorView.post { applyFullscreen() }
+
+        gamePath = intent.dataString
+        if (gamePath.isNullOrEmpty()) { finish(); return }
+        cfg.lastGamePath = gamePath
+
+        savesDir = File(getExternalFilesDir(null), "saves")
+        savesDir.mkdirs()
+        val raw = File(gamePath!!).nameWithoutExtension
+        gameKey = raw.replace(Regex("[^a-zA-Z0-9_]"), "_")
+        if (gameKey.isEmpty()) gameKey = "game"
+
+        if (!EmulatorBridge.ensureLoaded()) { finish(); return }
+        EmulatorBridge.nativeInit(this)
+        EmulatorBridge.nativeSetBackend(cfg.backend)
+        EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
+        EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
         view.onSurfaceReady = {
             if (initGuard) return@onSurfaceReady
@@ -36,7 +78,7 @@ class PlayActivity : AppCompatActivity() {
                     }
                     return@onSurfaceReady
                 }
-                android.util.Log.i("UltramanFE0", "native path: $realPath")
+                Log.i("UltramanFE0", "native path: $realPath")
                 loaded = EmulatorBridge.nativeLoadGame(realPath)
                 if (!loaded) {
                     runOnUiThread {
@@ -44,10 +86,8 @@ class PlayActivity : AppCompatActivity() {
                         finish()
                     }
                 } else {
-                    val sramFile = File(savesDir, "${gameKey}.sram")
-                    if (sramFile.exists()) {
-                        EmulatorBridge.nativeLoadSram(sramFile.absolutePath)
-                    }
+                    val sram = File(savesDir, "$gameKey.sram")
+                    if (sram.exists()) EmulatorBridge.nativeLoadSram(sram.absolutePath)
                     EmulatorBridge.nativeStart()
                 }
             }
@@ -56,29 +96,30 @@ class PlayActivity : AppCompatActivity() {
 
     private fun copyIsoToPrivate(src: Uri): String? {
         return try {
-            val dir = File(filesDir, "iso").apply { mkdirs() }
+            val dir = File(filesDir, "iso")
+            dir.mkdirs()
             val dst = File(dir, "game.iso")
             if (dst.exists() && dst.length() > 0) {
-                android.util.Log.i("UltramanFE0", "iso cached: ${dst.absolutePath} (${dst.length()} bytes)")
+                Log.i("UltramanFE0", "iso cached: ${dst.absolutePath} (${dst.length()} bytes)")
                 return dst.absolutePath
             }
-            android.util.Log.i("UltramanFE0", "copying iso from $src")
-            contentResolver.openInputStream(src)?.use { input ->
-                java.io.FileOutputStream(dst).use { output ->
-                    val buf = ByteArray(1024 * 1024)
-                    var total = 0L
-                    while (true) {
-                        val n = input.read(buf)
-                        if (n <= 0) break
-                        output.write(buf, 0, n)
-                        total += n
-                    }
-                    android.util.Log.i("UltramanFE0", "iso copied: $total bytes")
-                }
-            } ?: return null
+            Log.i("UltramanFE0", "copying iso")
+            val input = contentResolver.openInputStream(src) ?: return null
+            val output = FileOutputStream(dst)
+            val buf = ByteArray(1024 * 1024)
+            var total = 0L
+            while (true) {
+                val n = input.read(buf)
+                if (n <= 0) break
+                output.write(buf, 0, n)
+                total += n
+            }
+            output.close()
+            input.close()
+            Log.i("UltramanFE0", "iso copied: $total bytes")
             if (dst.length() > 0) dst.absolutePath else null
         } catch (t: Throwable) {
-            android.util.Log.e("UltramanFE0", "copy iso failed", t)
+            Log.e("UltramanFE0", "copy iso failed", t)
             null
         }
     }
@@ -108,19 +149,23 @@ class PlayActivity : AppCompatActivity() {
 
     private fun showMenu() {
         val items = arrayOf("保存即时存档", "加载即时存档", "保存游戏内存档", "加载游戏内存档", "退出游戏")
-        AlertDialog.Builder(this).setTitle("菜单").setItems(items) { _, w ->
-            when (w) {
-                0 -> saveState()
-                1 -> loadState()
-                2 -> saveSram()
-                3 -> loadSram()
-                4 -> finish()
+        AlertDialog.Builder(this)
+            .setTitle("菜单")
+            .setItems(items) { _, w ->
+                when (w) {
+                    0 -> saveState()
+                    1 -> loadState()
+                    2 -> saveSram()
+                    3 -> loadSram()
+                    4 -> finish()
+                }
             }
-        }.setNegativeButton("取消", null).show()
+            .setNegativeButton("取消", null)
+            .show()
     }
 
-    private fun stateFile(): File = File(savesDir, "${gameKey}.state")
-    private fun sramFile(): File = File(savesDir, "${gameKey}.sram")
+    private fun stateFile(): File = File(savesDir, "$gameKey.state")
+    private fun sramFile(): File = File(savesDir, "$gameKey.sram")
 
     private fun saveState() {
         toast(if (EmulatorBridge.nativeSaveState(stateFile().absolutePath)) "即时存档已保存" else "保存失败")
@@ -142,7 +187,9 @@ class PlayActivity : AppCompatActivity() {
         toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败")
     }
 
-    private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    private fun toast(s: String) {
+        Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+    }
 
     override fun onPause() {
         super.onPause()

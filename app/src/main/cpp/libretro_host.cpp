@@ -263,6 +263,9 @@ static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
 
+    s_system_dir = "/data/data/com.ultraman.fe0/files/system";
+    mkdir(s_system_dir.c_str(), 0777);
+
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
         LOGE("load_game: stat failed (path not accessible)");
@@ -281,6 +284,15 @@ bool ultraman_load_game(const std::string &path) {
     }
     fclose(probe);
     LOGI("load_game: fopen ok");
+
+    retro_set_environment(env_cb);
+    retro_set_video_refresh(ultraman_video_cb);
+    retro_set_audio_sample(on_a);
+    retro_set_audio_sample_batch(on_ab);
+    retro_set_input_poll(on_ip);
+    retro_set_input_state(on_is);
+    retro_init();
+    LOGI("retro_init ok");
 
     struct retro_system_info info{};
     retro_get_system_info(&info);
