@@ -4,6 +4,8 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <sys/resource.h>
+#include <unistd.h>
 #include <string>
 #include <cstring>
 #include <cstdio>
@@ -84,6 +86,18 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_rendering_mode"] = "buffered";
     s_vars["ppsspp_language"] = "Simplified Chinese";
     s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
+    s_vars["ppsspp_fast_memory"] = "enabled";
+    s_vars["ppsspp_multithreaded"] = "enabled";
+    s_vars["ppsspp_io_thread"] = "enabled";
+    s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
+    s_vars["ppsspp_vertex_cache"] = "enabled";
+    s_vars["ppsspp_lazy_texture_caching"] = "enabled";
+    s_vars["ppsspp_retain_changed_textures"] = "enabled";
+    s_vars["ppsspp_texture_scaling_level"] = "disabled";
+    s_vars["ppsspp_texture_filtering"] = "auto";
+    s_vars["ppsspp_frame_skip"] = "disabled";
+    s_vars["ppsspp_auto_frameskip"] = "disabled";
+    s_vars["ppsspp_turbo"] = "disabled";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;
     s_render_h = 272 * mult;
@@ -415,6 +429,7 @@ void ultraman_start_loop() {
 
     s_thread = std::thread([]{
         LOGI("loop thread started");
+        setpriority(PRIO_PROCESS, 0, -10);
         if (s_hw_render) {
             LOGI("loop: binding EGL context");
             ultraman_video_make_current();
@@ -443,13 +458,11 @@ void ultraman_start_loop() {
             next += std::chrono::nanoseconds(frame_ns);
             auto now = std::chrono::steady_clock::now();
             auto diff = next - now;
-            if (diff > std::chrono::microseconds(500)) {
-                std::this_thread::sleep_for(diff - std::chrono::microseconds(200));
-                while (std::chrono::steady_clock::now() < next) {
-                    #if defined(__aarch64__)
-                    asm volatile("yield" ::: "memory");
-                    #endif
-                }
+            auto diff_us = std::chrono::duration_cast<std::chrono::microseconds>(diff).count();
+            if (diff_us > 200) {
+                std::this_thread::sleep_for(std::chrono::microseconds(diff_us - 100));
+            } else if (diff_us < -1000) {
+                next = now;
             } else if (diff < std::chrono::nanoseconds(-1000000)) {
                 next = now;
             }

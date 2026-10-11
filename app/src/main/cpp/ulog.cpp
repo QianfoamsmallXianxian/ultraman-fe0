@@ -7,6 +7,7 @@
 #include <mutex>
 #include <sys/stat.h>
 static FILE *g_file = nullptr;
+static bool g_log_to_file = false;
 static std::mutex g_mtx;
 void ulog_init(const char *dir) {
     std::lock_guard<std::mutex> lk(g_mtx);
@@ -28,7 +29,7 @@ void ulog_write(int prio, const char *tag, const char *fmt, ...) {
     va_end(ap);
     __android_log_print(prio, tag, "%s", buf);
     std::lock_guard<std::mutex> lk(g_mtx);
-    if (g_file) {
+    if (g_file && g_log_to_file) {
         time_t now = time(nullptr);
         struct tm tm;
         localtime_r(&now, &tm);
