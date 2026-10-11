@@ -26,12 +26,20 @@ static void preload_gl_libs() {
         "libGLESv1_CM.so",
         "libEGL.so",
         "/vendor/lib64/egl/libGLESv2_adreno.so",
+        "/vendor/lib/egl/libGLESv2_adreno.so",
         "/system/lib64/egl/libGLESv2_adreno.so",
+        "/system/lib/egl/libGLESv2_adreno.so",
+        "/odm/lib64/egl/libGLESv2_adreno.so",
+        "/odm/lib/egl/libGLESv2_adreno.so",
+        "/vendor/lib64/libGLESv2_adreno.so",
+        "/system/lib64/libGLESv2_adreno.so",
+        "/vendor/lib64/egl/libGLESv2_qualcomm.so",
+        "/vendor/lib64/libGLESv2_qualcomm.so",
         nullptr
     };
     for (int i = 0; libs[i]; i++) {
         void* h = dlopen(libs[i], RTLD_NOW | RTLD_GLOBAL);
-        __android_log_print(ANDROID_LOG_INFO, "UltramanFE0",
+        ulog_write(ANDROID_LOG_INFO, "UltramanFE0",
             "preload %s -> %p", libs[i], h);
     }
 }
