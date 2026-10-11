@@ -1,4 +1,6 @@
 #include <android/log.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <atomic>
 #include <thread>
 #include <chrono>

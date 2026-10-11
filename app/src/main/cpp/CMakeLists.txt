@@ -26,4 +26,6 @@ target_link_libraries(ultraman_bridge
     GLESv3
     OpenSLES
     ${vulkan-lib})
+target_compile_definitions(ultraman_bridge PRIVATE VK_USE_PLATFORM_ANDROID_KHR)
+
 target_compile_options(ultraman_bridge PRIVATE -Wall -Wextra -fvisibility=hidden -funwind-tables -fno-omit-frame-pointer)
