@@ -539,6 +539,16 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     GLLOCK;
     if (!ensure_current()) return;
 
+    static bool s_pixel_store_set = false;
+    static int  s_tex_w = 0;
+    static int  s_tex_h = 0;
+    static bool s_tex_alloc = false;
+
+    if (!s_pixel_store_set) {
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        s_pixel_store_set = true;
+    }
+
     int winW = ANativeWindow_getWidth(g_win);
     int winH = ANativeWindow_getHeight(g_win);
     if (winW <= 0 || winH <= 0) return;
@@ -546,8 +556,21 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     GL_BIND_FB(GL_FRAMEBUFFER, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_sw_tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)w, (GLsizei)h, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+    if (!s_tex_alloc || (int)w != s_tex_w || (int)h != s_tex_h) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)w, (GLsizei)h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        s_tex_w = (int)w;
+        s_tex_h = (int)h;
+        s_tex_alloc = true;
+    } else {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)w, (GLsizei)h,
+                        GL_RGBA, GL_UNSIGNED_BYTE, data);
+    }
 
     glViewport(0, 0, winW, winH);
     glDisable(GL_DEPTH_TEST);
@@ -572,6 +595,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
     int f = g_sw_frames.fetch_add(1) + 1;
     if (f == 1 || f == 60) LOGI("sw frame #%d %ux%u", f, w, h);
 }
+
 
 void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
     if (w > 0) g_hw_w = (int)w;
