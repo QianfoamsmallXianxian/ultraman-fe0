@@ -81,28 +81,13 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_audio_latency"] = a ? "low" : "high";
     if (s_vars.find("ppsspp_backend") == s_vars.end())
         s_vars["ppsspp_backend"] = "OpenGL";
-    s_vars["ppsspp_software_rendering"] = "disabled";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
-    s_vars["ppsspp_rendering_mode"] = "buffered";
     s_vars["ppsspp_language"] = "Simplified Chinese";
-    s_vars["ppsspp_audio_enable"] = a ? "enabled" : "disabled";
-    s_vars["ppsspp_fast_memory"] = "enabled";
-    s_vars["ppsspp_multithreaded"] = "enabled";
-    s_vars["ppsspp_io_thread"] = "enabled";
-    s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
-    s_vars["ppsspp_vertex_cache"] = "enabled";
-    s_vars["ppsspp_lazy_texture_caching"] = "enabled";
-    s_vars["ppsspp_retain_changed_textures"] = "enabled";
-    s_vars["ppsspp_texture_scaling_level"] = "disabled";
-    s_vars["ppsspp_texture_filtering"] = "auto";
-    s_vars["ppsspp_frame_skip"] = "disabled";
-    s_vars["ppsspp_auto_frameskip"] = "disabled";
-    s_vars["ppsspp_turbo"] = "disabled";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;
     s_render_h = 272 * mult;
-    LOGI("set_options res=%d(%s) -> %dx%d vsync=%d audio=%d",
-         r, resolution_for(r), s_render_w, s_render_h, v, a);
+    LOGI("set_options res=%d -> %dx%d vsync=%d audio=%d",
+         r, s_render_w, s_render_h, v, a);
 }
 
 static const char *lookup_var(const char *key) {
@@ -429,7 +414,6 @@ void ultraman_start_loop() {
 
     s_thread = std::thread([]{
         LOGI("loop thread started");
-        setpriority(PRIO_PROCESS, 0, -10);
         if (s_hw_render) {
             LOGI("loop: binding EGL context");
             ultraman_video_make_current();
@@ -465,8 +449,17 @@ void ultraman_start_loop() {
             auto now = std::chrono::steady_clock::now();
             auto diff = next - now;
             auto diff_us = std::chrono::duration_cast<std::chrono::microseconds>(diff).count();
-            if (diff_us > 200) {
-                std::this_thread::sleep_for(std::chrono::microseconds(diff_us - 100));
+            if (diff_us > 500) {
+                std::this_thread::sleep_for(std::chrono::microseconds(diff_us - 300));
+                while (std::chrono::steady_clock::now() < next) {
+                    asm volatile("yield" ::: "memory");
+                }
+            } else if (diff_us < -1000) {
+                next = now;
+            } else if (diff_us < -1000) {
+                next = now;
+            } else if (diff_us < -1000) {
+                next = now;
             } else if (diff_us < -1000) {
                 next = now;
             } else if (diff < std::chrono::nanoseconds(-1000000)) {

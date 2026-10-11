@@ -190,16 +190,14 @@ static bool ensure_current() {
     if (tls_ctx == g_ctx && tls_sfc == g_sfc && g_ctx != EGL_NO_CONTEXT) {
         return true;
     }
-
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) {
         return false;
     }
-
     if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
         LOGE("ensure_current fail 0x%x", eglGetError());
-        g_current_sfc = EGL_NO_SURFACE;
         tls_ctx = EGL_NO_CONTEXT;
         tls_sfc = EGL_NO_SURFACE;
+        g_current_sfc = EGL_NO_SURFACE;
         return false;
     }
     g_current_sfc = g_sfc;
@@ -521,7 +519,7 @@ void ultraman_video_present() {
     PSTEP(7);
 
     int f = g_hw_frames.fetch_add(1) + 1;
-    if (f <= 3 || f == 300 || f == 1800) {
+    if (f <= 3 || f == 1800) {
         LOGI("present #%d %dx%d -> %dx%d", f, g_hw_w, g_hw_h, winW, winH);
     }
 }
