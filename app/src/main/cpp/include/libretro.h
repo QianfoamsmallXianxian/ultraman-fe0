@@ -95,6 +95,22 @@ typedef void (*retro_hw_context_reset_t)(void);
 typedef uintptr_t (*retro_hw_get_current_framebuffer_t)(void);
 typedef retro_proc_address_t (*retro_hw_get_proc_address_t)(const char *sym);
 
+
+enum retro_hw_render_interface_type {
+    RETRO_HW_RENDER_INTERFACE_VULKAN     = 0,
+    RETRO_HW_RENDER_INTERFACE_D3D9       = 1,
+    RETRO_HW_RENDER_INTERFACE_D3D10      = 2,
+    RETRO_HW_RENDER_INTERFACE_D3D11      = 3,
+    RETRO_HW_RENDER_INTERFACE_D3D12      = 4,
+    RETRO_HW_RENDER_INTERFACE_GSKIT_PS2  = 5,
+    RETRO_HW_RENDER_INTERFACE_DUMMY      = 0x7fffffff,
+};
+
+struct retro_hw_render_interface {
+    enum retro_hw_render_interface_type interface_type;
+    unsigned interface_version;
+};
+
 struct retro_hw_render_callback {
     enum retro_hw_context_type context_type;
     retro_hw_context_reset_t context_reset;

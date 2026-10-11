@@ -48,6 +48,8 @@ static std::mutex         g_queue_mtx;
 static struct retro_vulkan_context g_retro_ctx = {};
 static struct retro_hw_render_interface_vulkan g_retro_iface = {};
 
+static void transition_to_present(VkCommandBuffer cmd, VkImage img);
+
 static bool create_instance() {
     VkApplicationInfo ai{};
     ai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;

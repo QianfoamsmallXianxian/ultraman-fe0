@@ -10,6 +10,7 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+#include "libretro_vulkan.h"
 
 int g_use_vulkan = 0;
 
