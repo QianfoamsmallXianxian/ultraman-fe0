@@ -17,8 +17,28 @@ extern bool ultraman_load_state(const char *);
 extern bool ultraman_save_sram(const char *);
 extern bool ultraman_load_sram(const char *);
 
+#include <dlfcn.h>
+
+static void preload_gl_libs() {
+    const char* libs[] = {
+        "libGLESv2.so",
+        "libGLESv3.so",
+        "libGLESv1_CM.so",
+        "libEGL.so",
+        "/vendor/lib64/egl/libGLESv2_adreno.so",
+        "/system/lib64/egl/libGLESv2_adreno.so",
+        nullptr
+    };
+    for (int i = 0; libs[i]; i++) {
+        void* h = dlopen(libs[i], RTLD_NOW | RTLD_GLOBAL);
+        __android_log_print(ANDROID_LOG_INFO, "UltramanFE0",
+            "preload %s -> %p", libs[i], h);
+    }
+}
+
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
     ulog_init("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs");
+    preload_gl_libs();
     ulog_init("/data/data/com.ultraman.fe0/files/logs");
     ulog_write(ANDROID_LOG_INFO, "UltramanFE0", "=== JNI_OnLoad ===");
     return JNI_VERSION_1_6;
