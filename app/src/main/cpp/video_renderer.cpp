@@ -475,22 +475,10 @@ void ultraman_video_present() {
         LOGI("surface stable %dx%d", winW, winH);
     }
 
-    float srcA = (float)g_hw_w / (float)g_hw_h;
-    float dstA = (float)winW / (float)winH;
-    int vpW, vpH, vpX, vpY;
-    if (srcA > dstA) {
-        vpW = winW;
-        vpH = (int)((float)winW / srcA + 0.5f);
-        vpX = 0;
-        vpY = (winH - vpH) / 2;
-    } else {
-        vpH = winH;
-        vpW = (int)((float)winH * srcA + 0.5f);
-        vpX = (winW - vpW) / 2;
-        vpY = 0;
-    }
-    if (vpW <= 0) vpW = 1;
-    if (vpH <= 0) vpH = 1;
+    int vpW = winW;
+    int vpH = winH;
+    int vpX = 0;
+    int vpY = 0;
 
     PSTEP(3);
     GL_BIND_FB(GL_READ_FRAMEBUFFER, g_hw_fbo);
@@ -513,7 +501,7 @@ void ultraman_video_present() {
     PSTEP(7);
 
     int f = g_hw_frames.fetch_add(1) + 1;
-    if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
+    if (f <= 3 || f == 300 || f == 600) {
         LOGI("present #%d %dx%d -> %dx%d vp=%dx%d@%d,%d",
              f, g_hw_w, g_hw_h, winW, winH, vpW, vpH, vpX, vpY);
     }

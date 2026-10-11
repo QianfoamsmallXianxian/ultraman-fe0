@@ -400,7 +400,7 @@ void ultraman_start_loop() {
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
             if (s_hw_render) ultraman_video_present();
-            if (f <= 3 || f == 60 || f == 120 || f == 300) {
+            if (f <= 3 || f == 300 || f == 600) {
                 LOGI("frame %d done", f);
             }
             if (!s_run.load()) break;
