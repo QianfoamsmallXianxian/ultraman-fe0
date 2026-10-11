@@ -2,6 +2,7 @@ package com.ultraman.fe0
 
 import android.content.Context
 import android.util.AttributeSet
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -18,10 +19,7 @@ class EmulatorView @JvmOverloads constructor(
         get() = pendingCallback
         set(value) {
             pendingCallback = value
-            if (readyFired && value != null) {
-                Log.i("UltramanFE0", "onSurfaceReady after fire, invoke now")
-                value.invoke()
-            }
+            if (readyFired && value != null) value.invoke()
         }
 
     init {
@@ -29,8 +27,20 @@ class EmulatorView @JvmOverloads constructor(
         setZOrderMediaOverlay(false)
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val dm = resources.displayMetrics
+        var w = dm.widthPixels
+        var h = dm.heightPixels
+
+        if (w < h) {
+            val t = w; w = h; h = t
+        }
+
+        setMeasuredDimension(w, h)
+    }
+
     override fun surfaceCreated(h: SurfaceHolder) {
-        Log.i("UltramanFE0", "surfaceCreated")
+        Log.i("UltramanFE0", "surfaceCreated size=${width}x${height}")
         EmulatorBridge.nativeSetSurface(h.surface)
         if (!readyFired) {
             readyFired = true

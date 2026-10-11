@@ -480,6 +480,12 @@ void ultraman_video_present() {
     int vpX = 0;
     int vpY = 0;
 
+    static int diag_n = 0;
+    if (diag_n < 5) {
+        diag_n++;
+        LOGI("stretch: surface=%dx%d fbo=%dx%d -> fullscreen", winW, winH, g_hw_w, g_hw_h);
+    }
+
     PSTEP(3);
     GL_BIND_FB(GL_READ_FRAMEBUFFER, g_hw_fbo);
     GL_BIND_FB(GL_DRAW_FRAMEBUFFER, 0);
