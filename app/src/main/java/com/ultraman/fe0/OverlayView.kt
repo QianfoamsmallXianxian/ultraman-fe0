@@ -44,7 +44,7 @@ class OverlayView @JvmOverloads constructor(
             lastFrameCount = count
             lastTime = now
             if (cfg.showFps) invalidate()
-            fpsHandler.postDelayed(this, 500)
+            fpsHandler.postDelayed(this, 1000)
         }
     }
 

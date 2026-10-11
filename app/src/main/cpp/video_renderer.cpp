@@ -184,15 +184,27 @@ static void clear_gl_errors() {
 
 static bool ensure_current() {
     GLLOCK;
-    if (eglGetCurrentContext() == g_ctx) return true;
-    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return false;
+    static thread_local EGLContext tls_ctx = EGL_NO_CONTEXT;
+    static thread_local EGLSurface tls_sfc = EGL_NO_SURFACE;
+
+    if (tls_ctx == g_ctx && tls_sfc == g_sfc && g_ctx != EGL_NO_CONTEXT) {
+        return true;
+    }
+
+    if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) {
+        return false;
+    }
+
     if (!eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
         LOGE("ensure_current fail 0x%x", eglGetError());
         g_current_sfc = EGL_NO_SURFACE;
+        tls_ctx = EGL_NO_CONTEXT;
+        tls_sfc = EGL_NO_SURFACE;
         return false;
     }
     g_current_sfc = g_sfc;
-    clear_gl_errors();
+    tls_ctx = g_ctx;
+    tls_sfc = g_sfc;
     return true;
 }
 
@@ -466,13 +478,17 @@ void ultraman_video_present() {
     if (winW <= 0 || winH <= 0) return;
 
     static int stable_w = 0, stable_h = 0, unstable_count = 0;
-    if (winW != stable_w || winH != stable_h) {
-        unstable_count++;
-        if (unstable_count < 3) return;
-        stable_w = winW;
-        stable_h = winH;
-        unstable_count = 0;
-        LOGI("surface stable %dx%d", winW, winH);
+    static bool stable_locked = false;
+    if (!stable_locked) {
+        if (winW != stable_w || winH != stable_h) {
+            unstable_count++;
+            if (unstable_count < 3) return;
+            stable_w = winW;
+            stable_h = winH;
+            unstable_count = 0;
+            LOGI("surface stable %dx%d", winW, winH);
+            stable_locked = true;
+        }
     }
 
     int vpW = winW;
@@ -480,11 +496,7 @@ void ultraman_video_present() {
     int vpX = 0;
     int vpY = 0;
 
-    static int diag_n = 0;
-    if (diag_n < 5) {
-        diag_n++;
-        LOGI("stretch: surface=%dx%d fbo=%dx%d -> fullscreen", winW, winH, g_hw_w, g_hw_h);
-    }
+
 
     PSTEP(3);
     GL_BIND_FB(GL_READ_FRAMEBUFFER, g_hw_fbo);
@@ -507,9 +519,8 @@ void ultraman_video_present() {
     PSTEP(7);
 
     int f = g_hw_frames.fetch_add(1) + 1;
-    if (f <= 3 || f == 300 || f == 600) {
-        LOGI("present #%d %dx%d -> %dx%d vp=%dx%d@%d,%d",
-             f, g_hw_w, g_hw_h, winW, winH, vpW, vpH, vpX, vpY);
+    if (f <= 3 || f == 300 || f == 1800) {
+        LOGI("present #%d %dx%d -> %dx%d", f, g_hw_w, g_hw_h, winW, winH);
     }
 }
 
@@ -610,6 +621,7 @@ void ultraman_video_start() {
         LOGE("eglMakeCurrent fail");
         return;
     }
+    eglSwapInterval(g_dpy, 1);
 
     LOGI("GL version: %s", glGetString(GL_VERSION));
     LOGI("GL renderer: %s", glGetString(GL_RENDERER));

@@ -415,23 +415,38 @@ void ultraman_start_loop() {
         }
 
         const double fps = 59.94;
-        const auto frame_dur = std::chrono::microseconds((long long)(1000000.0 / fps));
+        const int64_t frame_ns = (int64_t)(1000000000.0 / fps);
         auto next = std::chrono::steady_clock::now();
 
         while (s_run.load()) {
             if (!s_run.load()) break;
+
+            auto t0 = std::chrono::steady_clock::now();
+
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
             if (s_hw_render) ultraman_video_present();
-            if (f <= 3 || f == 300 || f == 600) {
-                LOGI("frame %d done", f);
+
+            if (f <= 3 || f == 300 || f == 1800) {
+                auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - t0).count();
+                LOGI("frame %d cost %lldms", f, (long long)dur);
             }
             if (!s_run.load()) break;
 
-            next += frame_dur;
+            next += std::chrono::nanoseconds(frame_ns);
             auto now = std::chrono::steady_clock::now();
-            if (next > now) std::this_thread::sleep_until(next);
-            else next = now;
+            auto diff = next - now;
+            if (diff > std::chrono::microseconds(500)) {
+                std::this_thread::sleep_for(diff - std::chrono::microseconds(200));
+                while (std::chrono::steady_clock::now() < next) {
+                    #if defined(__aarch64__)
+                    asm volatile("yield" ::: "memory");
+                    #endif
+                }
+            } else if (diff < std::chrono::nanoseconds(-1000000)) {
+                next = now;
+            }
         }
         LOGI("loop thread ended");
     });
