@@ -41,6 +41,8 @@ static bool s_hw_render = false;
 static int s_backend = 0;
 static int s_render_w = 960;
 static int s_render_h = 544;
+static void (*s_core_ctx_reset)() = nullptr;
+static void (*s_core_ctx_destroy)() = nullptr;
 static void (*s_deferred_reset_cb)() = nullptr;
 
 static const char *resolution_for(int m) {
@@ -206,9 +208,14 @@ static bool env_cb(unsigned cmd, void *data) {
                 return false;
             }
 
+            /* 保存核心的回调（核心填的 context_reset / context_destroy） */
+            s_core_ctx_reset   = cb->context_reset;
+            s_core_ctx_destroy = cb->context_destroy;
+            LOGI("saved core ctx_reset=%p ctx_destroy=%p",
+                 (void*)s_core_ctx_reset, (void*)s_core_ctx_destroy);
+
+            /* 只填前端提供的回调，不覆盖核心的 context_reset / destroy */
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-            cb->context_reset           = ours->context_reset;
-            cb->context_destroy         = ours->context_destroy;
             cb->get_current_framebuffer = ours->get_current_framebuffer;
             cb->get_proc_address        = ours->get_proc_address;
             cb->depth                   = true;
@@ -478,6 +485,18 @@ bool ultraman_load_sram(const char *path) {
     size_t r = fread(data, 1, size, f);
     fclose(f);
     return r > 0;
+}
+
+void ultraman_call_core_ctx_reset() {
+    if (!s_core_ctx_reset) {
+        LOGI("no core ctx_reset saved yet");
+        return;
+    }
+    extern bool ultraman_video_create_fbo_now();
+    LOGI(">>> calling core context_reset (after FBO ready) <<<");
+    ultraman_video_create_fbo_now();
+    s_core_ctx_reset();
+    LOGI(">>> core context_reset done <<<");
 }
 
 void ultraman_on_video_ready() {
