@@ -16,16 +16,13 @@ class OverlayView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    private val density = resources.displayMetrics.density
-    private val scaledDensity = resources.displayMetrics.scaledDensity
-
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fpsPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textAlign = Paint.Align.LEFT
-        textSize = 13f * scaledDensity
+        textSize = 32f
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-        setShadowLayer(5f, 0f, 2f, 0xDD000000.toInt())
+        setShadowLayer(6f, 2f, 2f, 0xFF000000.toInt())
     }
     private val held = HashMap<Int, List<Int>>()
     private val buttons: MutableList<ButtonDef> = ButtonConfigManager(context).load()
@@ -76,7 +73,7 @@ class OverlayView @JvmOverloads constructor(
         for (b in buttons) {
             val dx = x - px(b)
             val dy = y - py(b)
-            val r = pr(b) * 3.0f
+            val r = pr(b) * 2.5f
             if (dx * dx + dy * dy < r * r) res.add(b.id)
         }
         return res
@@ -154,9 +151,7 @@ class OverlayView @JvmOverloads constructor(
 
         if (cfg.showFps) {
             val text = "FPS " + fpsValue.toInt()
-            val padX = 168f * density
-            val padY = 55f * density
-            canvas.drawText(text, padX, padY, fpsPaint)
+            canvas.drawText(text, 100f, 50f, fpsPaint)
         }
     }
 }

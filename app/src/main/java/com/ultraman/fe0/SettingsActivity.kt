@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 
@@ -23,7 +24,6 @@ class SettingsActivity : AppCompatActivity() {
         val tvRes = findViewById<TextView>(R.id.tvRes)
         val swFull = findViewById<SwitchCompat>(R.id.swFullscreen)
         val swShowFps = findViewById<SwitchCompat>(R.id.swShowFps)
-        val swAudio = findViewById<SwitchCompat>(R.id.swAudio)
         val spAudioBuffer = findViewById<Spinner>(R.id.spAudioBuffer)
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
@@ -31,12 +31,19 @@ class SettingsActivity : AppCompatActivity() {
         spBackend.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("OpenGL 硬件渲染")
+            arrayOf("OpenGL (推荐)", "Vulkan (实验)")
         )
-        spBackend.setSelection(0)
+        spBackend.setSelection(cfg.backend.coerceIn(0, 1))
         spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                cfg.backend = 0
+                cfg.backend = pos
+                if (pos == 1) {
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        "Vulkan 需要核心支持，可能回退到 OpenGL",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
@@ -59,13 +66,10 @@ class SettingsActivity : AppCompatActivity() {
         swShowFps.isChecked = cfg.showFps
         swShowFps.setOnCheckedChangeListener { _, v -> cfg.showFps = v }
 
-        swAudio.isChecked = cfg.audioEnabled
-        swAudio.setOnCheckedChangeListener { _, v -> cfg.audioEnabled = v }
-
         spAudioBuffer.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("低 (延迟小·可能爆音)", "中 (推荐)", "高 (减少爆音)")
+            arrayOf("低 (延迟小)", "中 (推荐)", "高 (减少爆音)")
         )
         spAudioBuffer.setSelection(cfg.audioBuffer.coerceIn(0, 2))
         spAudioBuffer.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {

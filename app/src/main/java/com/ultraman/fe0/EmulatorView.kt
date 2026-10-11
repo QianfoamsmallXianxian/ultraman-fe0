@@ -28,14 +28,18 @@ class EmulatorView @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val dm = resources.displayMetrics
-        var w = dm.widthPixels
-        var h = dm.heightPixels
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        val realSize = android.graphics.Point()
+        wm.defaultDisplay.getRealSize(realSize)
+
+        var w = realSize.x
+        var h = realSize.y
 
         if (w < h) {
             val t = w; w = h; h = t
         }
 
+        Log.i("UltramanFE0", "onMeasure real=${realSize.x}x${realSize.y} -> ${w}x${h}")
         setMeasuredDimension(w, h)
     }
 

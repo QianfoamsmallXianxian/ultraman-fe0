@@ -17,9 +17,8 @@ class ConfigManager(ctx: Context) {
         get() = sp.getBoolean("vsync", true)
         set(v) = sp.edit().putBoolean("vsync", v).apply()
 
-    var audioEnabled: Boolean
-        get() = sp.getBoolean("audio", true)
-        set(v) = sp.edit().putBoolean("audio", v).apply()
+    val audioEnabled: Boolean
+        get() = true
 
     var backend: Int
         get() = sp.getInt("backend", 0)
@@ -44,6 +43,5 @@ class ConfigManager(ctx: Context) {
     companion object {
         const val BACKEND_OPENGL = 0
         const val BACKEND_VULKAN = 1
-        const val BACKEND_SOFTWARE = 2
     }
 }
