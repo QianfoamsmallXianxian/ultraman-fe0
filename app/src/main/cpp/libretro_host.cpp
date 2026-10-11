@@ -445,6 +445,12 @@ void ultraman_start_loop() {
             auto t0 = std::chrono::steady_clock::now();
 
             retro_run();
+            if (g_use_vulkan == 1) {
+                extern bool vk_render_frame();
+                vk_render_frame();
+            } else if (s_hw_render) {
+                ultraman_video_present();
+            }
             int f = s_frames.fetch_add(1) + 1;
             if (s_hw_render) ultraman_video_present();
 
@@ -507,6 +513,12 @@ void ultraman_resume_render() {
         auto next = std::chrono::steady_clock::now();
         while (s_run.load()) {
             retro_run();
+            if (g_use_vulkan == 1) {
+                extern bool vk_render_frame();
+                vk_render_frame();
+            } else if (s_hw_render) {
+                ultraman_video_present();
+            }
             if (s_hw_render) ultraman_video_present();
             next += frame_dur;
             auto now = std::chrono::steady_clock::now();

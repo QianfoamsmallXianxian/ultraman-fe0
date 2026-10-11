@@ -48,6 +48,15 @@ static std::mutex         g_queue_mtx;
 static struct retro_vulkan_context g_retro_ctx = {};
 static struct retro_hw_render_interface_vulkan g_retro_iface = {};
 
+static VkImage     g_src_image      = VK_NULL_HANDLE;
+static VkImageView g_src_view       = VK_NULL_HANDLE;
+static VkImageLayout g_src_layout   = VK_IMAGE_LAYOUT_UNDEFINED;
+static std::vector<VkSemaphore> g_wait_sems;
+static std::vector<VkCommandBuffer> g_core_cmds;
+
+static VkImage     g_blit_src_view_tex = VK_NULL_HANDLE;
+
+
 static void transition_to_present(VkCommandBuffer cmd, VkImage img);
 
 static bool create_instance() {
@@ -282,7 +291,21 @@ bool vk_recreate_swapchain(ANativeWindow* win, uint32_t w, uint32_t h) {
 static void cb_set_image(void* h, const struct retro_vulkan_image* img,
                           uint32_t num_sems, const VkSemaphore* sems,
                           uint32_t src_qf, uint32_t dst_qf) {
-    (void)h; (void)img; (void)num_sems; (void)sems; (void)src_qf; (void)dst_qf;
+    (void)h; (void)src_qf; (void)dst_qf;
+    if (!img) {
+        g_src_image = VK_NULL_HANDLE;
+        g_src_view = VK_NULL_HANDLE;
+        g_src_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        return;
+    }
+    g_src_image  = img->image_view ? img->image_view : VK_NULL_HANDLE;
+    g_src_view   = img->image_view;
+    g_src_layout = img->image_layout;
+
+    g_wait_sems.clear();
+    for (uint32_t i = 0; i < num_sems && sems; i++) {
+        g_wait_sems.push_back(sems[i]);
+    }
 }
 
 static uint32_t cb_get_sync_index(void* h) {
@@ -296,7 +319,11 @@ static uint32_t cb_get_sync_index_mask(void* h) {
 }
 
 static void cb_set_command_buffers(void* h, uint32_t n, const VkCommandBuffer* cmd) {
-    (void)h; (void)n; (void)cmd;
+    (void)h;
+    g_core_cmds.clear();
+    for (uint32_t i = 0; i < n && cmd; i++) {
+        g_core_cmds.push_back(cmd[i]);
+    }
 }
 
 static void cb_wait_sync_index(void* h) {
@@ -336,10 +363,9 @@ struct retro_hw_render_interface_vulkan* vk_get_retro_interface() {
 }
 
 bool vk_render_frame() {
-    if (!g_sw_ready || g_images.empty()) return false;
+    if (!g_sw_ready || g_images.empty() || g_cmds.empty()) return false;
 
     vkWaitForFences(g_device, 1, &g_in_flight_fences[g_frame_idx], VK_TRUE, UINT64_MAX);
-    vkResetFences(g_device, 1, &g_in_flight_fences[g_frame_idx]);
 
     uint32_t img_idx = 0;
     VkResult r = vkAcquireNextImageKHR(
@@ -347,22 +373,56 @@ bool vk_render_frame() {
         g_image_avail_sems[g_frame_idx], VK_NULL_HANDLE, &img_idx);
     if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR) return false;
 
+    vkResetFences(g_device, 1, &g_in_flight_fences[g_frame_idx]);
+
     g_sync_index = img_idx;
+
+    VkCommandBuffer cmd = g_cmds[g_frame_idx];
+    vkResetCommandBuffer(cmd, 0);
 
     VkCommandBufferBeginInfo bi{};
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkBeginCommandBuffer(g_cmds[img_idx], &bi);
-    transition_to_present(g_cmds[img_idx], g_images[img_idx]);
-    vkEndCommandBuffer(g_cmds[img_idx]);
+    vkBeginCommandBuffer(cmd, &bi);
 
-    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    if (g_src_image != VK_NULL_HANDLE) {
+        vk_barrier_image(cmd, g_src_image,
+            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+        vk_barrier_image(cmd, g_images[img_idx],
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+        vk_blit_image_to_swapchain(cmd, g_src_image, g_images[img_idx]);
+
+        vk_barrier_image(cmd, g_images[img_idx],
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_ACCESS_TRANSFER_WRITE_BIT, 0,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+        vk_barrier_image(cmd, g_src_image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+            VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_MEMORY_WRITE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    } else {
+        vk_barrier_image(cmd, g_images[img_idx],
+            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            0, 0,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    }
+
+    vkEndCommandBuffer(cmd);
+
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo si{};
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.waitSemaphoreCount = 1;
     si.pWaitSemaphores = &g_image_avail_sems[g_frame_idx];
     si.pWaitDstStageMask = &waitStage;
     si.commandBufferCount = 1;
-    si.pCommandBuffers = &g_cmds[img_idx];
+    si.pCommandBuffers = &cmd;
     si.signalSemaphoreCount = 1;
     si.pSignalSemaphores = &g_render_done_sems[g_frame_idx];
 
@@ -436,4 +496,38 @@ static void release_barrier(VkCommandBuffer cmd, VkImage img,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         0, 0, nullptr, 0, nullptr, 1, &b);
+}
+
+
+static void vk_blit_image_to_swapchain(VkCommandBuffer cmd, VkImage src, VkImage dst) {
+    if (src == VK_NULL_HANDLE || dst == VK_NULL_HANDLE) return;
+
+    VkImageBlit region{};
+    region.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.srcOffsets[0] = {0, 0, 0};
+    region.srcOffsets[1] = {(int32_t)g_extent.width, (int32_t)g_extent.height, 1};
+    region.dstOffsets[0] = {0, 0, 0};
+    region.dstOffsets[1] = {(int32_t)g_extent.width, (int32_t)g_extent.height, 1};
+
+    vkCmdBlitImage(cmd, src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                   1, &region, VK_FILTER_NEAREST);
+}
+
+static void vk_barrier_image(VkCommandBuffer cmd, VkImage img,
+                              VkImageLayout oldLayout, VkImageLayout newLayout,
+                              VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                              VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
+    VkImageMemoryBarrier b{};
+    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    b.oldLayout = oldLayout;
+    b.newLayout = newLayout;
+    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.image = img;
+    b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    b.srcAccessMask = srcAccess;
+    b.dstAccessMask = dstAccess;
+    vkCmdPipelineBarrier(cmd, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
 }
