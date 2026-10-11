@@ -143,9 +143,16 @@ void ultraman_set_options(int r, bool v, bool a) {
     if (s_vars.find("ppsspp_backend") == s_vars.end())
         s_vars["ppsspp_backend"] = "OpenGL";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
-    s_vars["ppsspp_frame_skip"] = "1";
-    s_vars["ppsspp_auto_frameskip"] = "enabled";
+    s_vars["ppsspp_frame_skip"] = "0";
+    s_vars["ppsspp_auto_frameskip"] = "disabled";
     s_vars["ppsspp_language"] = "Simplified Chinese";
+    s_vars["ppsspp_cpu_core"] = "JIT";
+    s_vars["ppsspp_fast_memory"] = "enabled";
+    s_vars["ppsspp_ignore_bad_memory_access"] = "enabled";
+    s_vars["ppsspp_io_timing_method"] = "Fast";
+    s_vars["ppsspp_force_max_60fps"] = "enabled";
+    s_vars["ppsspp_vertex_cache"] = "enabled";
+    s_vars["ppsspp_lazy_texture_caching"] = "enabled";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;
     s_render_h = 272 * mult;
