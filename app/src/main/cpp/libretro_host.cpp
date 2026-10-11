@@ -50,8 +50,7 @@ static void perf_frame(int64_t total_ns, int64_t retro_ns, int64_t vk_ns, int64_
     double ms = total_ns / 1e6;
     if (ms > g_perf_worst) g_perf_worst = ms;
     if (ms > 17.0)
-        perf_write("[DROP] f=%d total=%.2f retro=%.2f vk=%.2f present=%.2f
-",
+        perf_write("[DROP] f=%d total=%.2f retro=%.2f vk=%.2f present=%.2f\n",
                    fno, ms, retro_ns/1e6, vk_ns/1e6, present_ns/1e6);
     if (fno > 0 && fno % 60 == 0) {
         int64_t now = perf_now_ns();
@@ -63,8 +62,7 @@ static void perf_frame(int64_t total_ns, int64_t retro_ns, int64_t vk_ns, int64_
         }
         double sec = (now - g_perf_bucket_start) / 1e9;
         double fps = g_perf_count / (sec > 0.001 ? sec : 0.001);
-        perf_write("[F60] fps=%.1f worst=%.2fms retro=%.2fms vk=%.2fms present=%.2fms
-",
+        perf_write("[F60] fps=%.1f worst=%.2fms retro=%.2fms vk=%.2fms present=%.2fms\n",
                    fps, g_perf_worst,
                    g_perf_retro_sum  /(g_perf_count*1e6),
                    g_perf_vk_sum     /(g_perf_count*1e6),
