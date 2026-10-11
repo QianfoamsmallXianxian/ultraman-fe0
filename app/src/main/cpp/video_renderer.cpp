@@ -13,6 +13,7 @@
 #include <cstring>
 #include "ulog.h"
 #include "libretro.h"
+#include "frame_profiler.h"
 
 #define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
@@ -497,6 +498,7 @@ void ultraman_video_present() {
 
 
     PSTEP(3);
+    PROF_MARK_BEGIN(STAGE_BLIT_OR_DRAW);
     static int last_vp_w = -1, last_vp_h = -1;
     if (last_vp_w != winW || last_vp_h != winH) {
         glViewport(0, 0, winW, winH);
@@ -512,10 +514,13 @@ void ultraman_video_present() {
         GL_COLOR_BUFFER_BIT, GL_NEAREST
     );
     PSTEP(5);
+    PROF_MARK_END(STAGE_BLIT_OR_DRAW);
     GL_BIND_FB(GL_FRAMEBUFFER, 0);
 
     PSTEP(6);
-    if (!eglSwapBuffers(g_dpy, g_sfc)) return;
+    PROF_MARK_BEGIN(STAGE_SWAP);
+    if (!eglSwapBuffers(g_dpy, g_sfc)) { PROF_MARK_END(STAGE_SWAP); return; }
+    PROF_MARK_END(STAGE_SWAP);
     PSTEP(7);
 
     int f = g_hw_frames.fetch_add(1) + 1;
@@ -711,6 +716,7 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
             g_win_w = nw;
             g_win_h = nh;
             LOGI("surface %p %dx%d vulkan=%d", g_win, nw, nh, g_use_vulkan);
+            FrameProfiler::get().note_surface(nw, nh);
 
             if (g_use_vulkan == 1) {
                 extern void ultraman_notify_vulkan_recreate(ANativeWindow*, uint32_t, uint32_t);

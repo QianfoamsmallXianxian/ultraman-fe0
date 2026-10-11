@@ -11,6 +11,7 @@ find_library(vulkan-lib vulkan)
 add_library(ultraman_bridge SHARED
     ulog.cpp
     crash_handler.cpp
+    frame_profiler.cpp
     vulkan_context.cpp
     native_bridge.cpp
     libretro_host.cpp

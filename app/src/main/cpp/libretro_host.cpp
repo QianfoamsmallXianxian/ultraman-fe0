@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include "libretro.h"
 #include "libretro_vulkan.h"
+#include "frame_profiler.h"
 
 int g_use_vulkan = 0;
 

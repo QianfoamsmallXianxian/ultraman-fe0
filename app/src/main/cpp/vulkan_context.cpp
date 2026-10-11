@@ -6,6 +6,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include "vulkan_context.h"
+#include "frame_profiler.h"
 #include "ulog.h"
 #include <android/log.h>
 #include <vector>
@@ -374,11 +375,19 @@ bool vk_render_frame() {
 
     vkWaitForFences(g_device, 1, &g_in_flight_fences[g_frame_idx], VK_TRUE, UINT64_MAX);
 
+    PROF_MARK_BEGIN(STAGE_ACQUIRE);
     uint32_t img_idx = 0;
     VkResult r = vkAcquireNextImageKHR(
         g_device, g_swapchain, UINT64_MAX,
         g_image_avail_sems[g_frame_idx], VK_NULL_HANDLE, &img_idx);
-    if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR) return false;
+    PROF_MARK_END(STAGE_ACQUIRE);
+    if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR) {
+        FrameProfiler::get().note_vulkan_error("acquire_next_image_fail");
+        return false;
+    }
+    if (r == VK_SUBOPTIMAL_KHR) {
+        FrameProfiler::get().note_vulkan_error("acquire_suboptimal");
+    }
 
     vkResetFences(g_device, 1, &g_in_flight_fences[g_frame_idx]);
 
@@ -439,7 +448,9 @@ bool vk_render_frame() {
     si.signalSemaphoreCount = 1;
     si.pSignalSemaphores = &g_render_done_sems[g_frame_idx];
 
+    PROF_MARK_BEGIN(STAGE_SUBMIT);
     vkQueueSubmit(g_queue, 1, &si, g_in_flight_fences[g_frame_idx]);
+    PROF_MARK_END(STAGE_SUBMIT);
 
     VkPresentInfoKHR pi{};
     pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -449,7 +460,12 @@ bool vk_render_frame() {
     pi.pSwapchains = &g_swapchain;
     pi.pImageIndices = &img_idx;
 
-    vkQueuePresentKHR(g_queue, &pi);
+    PROF_MARK_BEGIN(STAGE_PRESENT_KH);
+    VkResult pr = vkQueuePresentKHR(g_queue, &pi);
+    PROF_MARK_END(STAGE_PRESENT_KH);
+    if (pr != VK_SUCCESS) {
+        FrameProfiler::get().note_vulkan_error("present_fail");
+    }
 
     g_frame_idx = (g_frame_idx + 1) % g_images.size();
     return true;
