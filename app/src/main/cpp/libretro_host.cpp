@@ -22,6 +22,7 @@ extern void ultraman_video_start();
 extern void ultraman_video_stop();
 extern void ultraman_video_set_hw(bool, int, int);
 extern void ultraman_video_present();
+extern int ultraman_video_present_step();
 extern bool ultraman_video_is_ready();
 extern bool ultraman_video_create_fbo_now();
 extern bool ultraman_video_make_current();
@@ -393,7 +394,12 @@ void ultraman_start_loop() {
             if (!s_run.load()) break;
             retro_run();
             int f = s_frames.fetch_add(1) + 1;
-            if (s_hw_render) ultraman_video_present();
+            if (s_hw_render) {
+                ultraman_video_present();
+                if (f <= 6) {
+                    LOGI("frame %d done, present step=%d", f, ultraman_video_present_step());
+                }
+            }
             if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
                 LOGI("frame %d", f);
             }

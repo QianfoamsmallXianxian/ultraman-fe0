@@ -290,7 +290,12 @@ void ultraman_video_set_hw(bool hw, int w, int h) {
     LOGI("video_set_hw %s %dx%d", hw ? "HW" : "SW", g_hw_w, g_hw_h);
 }
 
+static std::atomic<int> g_present_step{0};
 void ultraman_video_present() {
+    int step = 0;
+#define PSTEP(n) do { g_present_step.store(n); } while(0)
+#define PSTEP_END
+
     static std::atomic<int> s_call{0};
     int c = s_call.fetch_add(1) + 1;
     if (c <= 3) {
@@ -327,7 +332,9 @@ void ultraman_video_present() {
     }
 
     if (!g_hw_ready.load() || !g_hw_fbo) return;
+    PSTEP(1);
     if (!ensure_current()) return;
+    PSTEP(2);
 
     int winW = g_win_w;
     int winH = g_win_h;
@@ -366,19 +373,24 @@ void ultraman_video_present() {
     if (vpW <= 0) vpW = 1;
     if (vpH <= 0) vpH = 1;
 
+    PSTEP(3);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hw_fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, winW, winH);
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
+    PSTEP(4);
     glBlitFramebuffer(
         0, g_hw_h, g_hw_w, 0,
         vpX, vpY, vpX + vpW, vpY + vpH,
         GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    PSTEP(5);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    PSTEP(6);
     if (!eglSwapBuffers(g_dpy, g_sfc)) return;
+    PSTEP(7);
 
     int f = g_hw_frames.fetch_add(1) + 1;
     if (f <= 3 || f == 30 || f == 60 || f == 120 || f == 300) {
@@ -642,4 +654,9 @@ void ultraman_video_dump_gl_errors() {
         c++;
     }
     if (c == 0) LOGW("dump: no GL errors");
+}
+
+
+int ultraman_video_present_step() {
+    return g_present_step.load();
 }
