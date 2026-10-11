@@ -6,9 +6,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 add_library(ppsspp_core SHARED IMPORTED)
 set_target_properties(ppsspp_core PROPERTIES
     IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libppsspp_libretro_android.so)
+find_library(vulkan-lib vulkan)
+
 add_library(ultraman_bridge SHARED
     ulog.cpp
     crash_handler.cpp
+    vulkan_context.cpp
     native_bridge.cpp
     libretro_host.cpp
     video_renderer.cpp
@@ -21,5 +24,6 @@ target_link_libraries(ultraman_bridge
     log
     EGL
     GLESv3
-    OpenSLES)
+    OpenSLES
+    ${vulkan-lib})
 target_compile_options(ultraman_bridge PRIVATE -Wall -Wextra -fvisibility=hidden -funwind-tables -fno-omit-frame-pointer)
