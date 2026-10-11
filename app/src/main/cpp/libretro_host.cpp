@@ -217,19 +217,6 @@ static bool env_cb(unsigned cmd, void *data) {
 
             s_hw_render = true;
             LOGI("HW accepted, filled get_fbo/get_proc");
-
-            if (ultraman_video_is_ready()) {
-                LOGI("video ready: calling core ctx_reset immediate");
-                ultraman_video_create_fbo_now();
-                if (s_core_ctx_reset) {
-                    LOGI(">>> calling core ctx_reset (immediate) <<<");
-                    s_core_ctx_reset();
-                    LOGI(">>> core ctx_reset done <<<");
-                }
-            } else {
-                LOGW("video not ready: ctx_reset deferred");
-                s_pending_ctx_reset = true;
-            }
             return true;
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
@@ -375,6 +362,16 @@ bool ultraman_load_game(const std::string &path) {
     }
     LOGI("retro_load_game ok hw=%d", s_hw_render ? 1 : 0);
 
+    if (s_hw_render && s_core_ctx_reset) {
+        extern bool ultraman_video_create_fbo_now();
+        LOGI(">>> calling core ctx_reset (after retro_load_game) <<<");
+        ultraman_video_create_fbo_now();
+        s_core_ctx_reset();
+        LOGI(">>> core ctx_reset done <<<");
+    } else {
+        LOGW("no ctx_reset called (hw=%d)", s_hw_render ? 1 : 0);
+    }
+
     ultraman_audio_start(av.timing.sample_rate);
     s_loaded.store(true);
     return true;
@@ -506,12 +503,4 @@ void ultraman_call_core_ctx_reset() {
 
 void ultraman_on_video_ready() {
     LOGI("video_ready: video became ready");
-    if (s_pending_ctx_reset && s_core_ctx_reset) {
-        LOGI(">>> calling deferred core ctx_reset <<<");
-        extern bool ultraman_video_create_fbo_now();
-        ultraman_video_create_fbo_now();
-        s_core_ctx_reset();
-        s_pending_ctx_reset = false;
-        LOGI(">>> deferred core ctx_reset done <<<");
-    }
 }
