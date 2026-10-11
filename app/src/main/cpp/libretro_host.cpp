@@ -60,6 +60,7 @@ static const char *resolution_for(int m) {
 
 void ultraman_set_backend(int b) {
     s_backend = b;
+    g_use_vulkan = (b == 1) ? 1 : 0;
     if (b == 0) s_vars["ppsspp_backend"] = "OpenGL";
     else if (b == 1) s_vars["ppsspp_backend"] = "Vulkan";
     else s_vars["ppsspp_backend"] = "OpenGL";
@@ -195,33 +196,55 @@ static bool env_cb(unsigned cmd, void *data) {
                  cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0, cb->version);
 
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
-                LOGW("Vulkan refused"); return false;
+                if (s_backend != 1) {
+                    LOGW("Vulkan requested but backend != 1, refusing");
+                    return false;
+                }
+                LOGI("accepting Vulkan");
+                extern bool vk_init(ANativeWindow*, uint32_t, uint32_t);
+                extern void ultraman_video_get_window_and_size(ANativeWindow**, uint32_t*, uint32_t*);
+                ANativeWindow* win = nullptr;
+                uint32_t w = 0, h = 0;
+                ultraman_video_get_window_and_size(&win, &w, &h);
+                if (!win) { LOGE("Vulkan: no native window"); return false; }
+                if (!vk_init(win, w, h)) { LOGE("Vulkan init failed"); return false; }
+                s_hw_render = true;
+                LOGI("Vulkan HW accepted");
+                return true;
             }
-            int requested = cb->context_type;
-            if (requested != RETRO_HW_CONTEXT_OPENGL_ES3 &&
-                requested != RETRO_HW_CONTEXT_OPENGL_ES2 &&
-                requested != RETRO_HW_CONTEXT_OPENGL_CORE &&
-                requested != RETRO_HW_CONTEXT_OPENGL) {
-                LOGE("HW type %d unsupported", requested); return false;
+
+            if (cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES3 ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES2 ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
+                cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
+                if (s_backend == 1) { LOGW("OpenGL requested but backend==1"); return false; }
+                s_core_ctx_reset   = cb->context_reset;
+                s_core_ctx_destroy = cb->context_destroy;
+                struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
+                cb->get_current_framebuffer = ours->get_current_framebuffer;
+                cb->get_proc_address        = ours->get_proc_address;
+                cb->depth                   = true;
+                cb->stencil                 = true;
+                s_hw_render = true;
+                LOGI("OpenGL HW accepted");
+                return true;
             }
-
-            s_core_ctx_reset   = cb->context_reset;
-            s_core_ctx_destroy = cb->context_destroy;
-            LOGI("saved core ctx_reset=%p ctx_destroy=%p",
-                 (void*)s_core_ctx_reset, (void*)s_core_ctx_destroy);
-
-            struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-            cb->get_current_framebuffer = ours->get_current_framebuffer;
-            cb->get_proc_address        = ours->get_proc_address;
-            cb->depth                   = true;
-            cb->stencil                 = true;
-
-            s_hw_render = true;
-            LOGI("HW accepted, filled get_fbo/get_proc");
+            LOGE("HW type %d unsupported", cb->context_type);
+            return false;
+        }
+        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE: {
+            LOGI("GET_HW_RENDER_INTERFACE called, backend=%d", s_backend);
+            if (s_backend != 1) {
+                LOGW("not Vulkan backend, refusing interface");
+                return false;
+            }
+            extern struct retro_hw_render_interface_vulkan* vk_get_retro_interface();
+            struct retro_hw_render_interface_vulkan* iface = vk_get_retro_interface();
+            if (!iface) { LOGE("vk interface null"); return false; }
+            *(const struct retro_hw_render_interface_vulkan **)data = iface;
+            LOGI("Vulkan interface handed to core");
             return true;
         }
-        case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
-            return false;
         case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
             *(unsigned *)data = RETRO_HW_CONTEXT_OPENGL_ES3;
             return true;
@@ -568,4 +591,24 @@ void ultraman_reset_context() {
     ultraman_video_create_fbo_now();
     s_core_ctx_reset();
     LOGI("reset_context: done");
+}
+
+
+int g_use_vulkan = 0;
+
+void ultraman_notify_vulkan_recreate(ANativeWindow* win, uint32_t w, uint32_t h) {
+    LOGI("notify_vulkan_recreate %p %ux%u", win, w, h);
+    if (g_use_vulkan != 1 || !s_hw_render) {
+        LOGW("not vulkan or not hw, skip");
+        return;
+    }
+    extern bool vk_recreate_swapchain(ANativeWindow*, uint32_t, uint32_t);
+    if (!vk_recreate_swapchain(win, w, h)) {
+        LOGE("vk_recreate_swapchain failed");
+        return;
+    }
+    if (s_core_ctx_reset) {
+        LOGI(">>> core ctx_reset after swapchain recreate <<<");
+        s_core_ctx_reset();
+    }
 }

@@ -340,6 +340,12 @@ bool vk_render_frame() {
 
     g_sync_index = img_idx;
 
+    VkCommandBufferBeginInfo bi{};
+    bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(g_cmds[img_idx], &bi);
+    transition_to_present(g_cmds[img_idx], g_images[img_idx]);
+    vkEndCommandBuffer(g_cmds[img_idx]);
+
     VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo si{};
     si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -365,4 +371,60 @@ bool vk_render_frame() {
 
     g_frame_idx = (g_frame_idx + 1) % g_images.size();
     return true;
+}
+
+
+static void transition_to_present(VkCommandBuffer cmd, VkImage img) {
+    VkImageMemoryBarrier b{};
+    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    b.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    b.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.image = img;
+    b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    b.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    b.dstAccessMask = 0;
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &b);
+}
+
+static void acquire_barrier(VkCommandBuffer cmd, VkImage img,
+                             uint32_t src_qf, uint32_t dst_qf) {
+    if (src_qf == dst_qf) return;
+    VkImageMemoryBarrier b{};
+    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    b.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    b.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    b.srcQueueFamilyIndex = src_qf;
+    b.dstQueueFamilyIndex = dst_qf;
+    b.image = img;
+    b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    b.srcAccessMask = 0;
+    b.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &b);
+}
+
+static void release_barrier(VkCommandBuffer cmd, VkImage img,
+                             uint32_t src_qf, uint32_t dst_qf) {
+    if (src_qf == dst_qf) return;
+    VkImageMemoryBarrier b{};
+    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    b.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    b.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    b.srcQueueFamilyIndex = src_qf;
+    b.dstQueueFamilyIndex = dst_qf;
+    b.image = img;
+    b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    b.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    b.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &b);
 }

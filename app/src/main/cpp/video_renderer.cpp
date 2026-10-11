@@ -670,17 +670,16 @@ void ultraman_video_stop() {
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     bool need_start = false;
     bool need_recreate = false;
+    ANativeWindow* new_win = nullptr;
+    int nw = 0, nh = 0;
 
     {
         GLLOCK;
-        ANativeWindow* new_win = s ? ANativeWindow_fromSurface(env, s) : nullptr;
+        new_win = s ? ANativeWindow_fromSurface(env, s) : nullptr;
 
-        if (new_win == g_win) {
+        if (new_win == g_win && g_win != nullptr) {
             if (new_win) ANativeWindow_release(new_win);
-            if (!s) {
-                g_surface_ok.store(false);
-                LOGI("surface null (unchanged)");
-            }
+            if (!s) g_surface_ok.store(false);
             return;
         }
 
@@ -691,22 +690,21 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
             g_win = nullptr;
         }
 
-        if (g_video_ready.load() && g_dpy != EGL_NO_DISPLAY) {
-            eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-            g_current_sfc = EGL_NO_SURFACE;
-            if (g_sfc != EGL_NO_SURFACE) {
-                eglDestroySurface(g_dpy, g_sfc);
-                g_sfc = EGL_NO_SURFACE;
-            }
-        }
+        extern int g_use_vulkan;
 
         if (new_win) {
             g_win = new_win;
-            g_win_w = ANativeWindow_getWidth(g_win);
-            g_win_h = ANativeWindow_getHeight(g_win);
-            LOGI("surface %p %dx%d", g_win, g_win_w, g_win_h);
+            nw = ANativeWindow_getWidth(g_win);
+            nh = ANativeWindow_getHeight(g_win);
+            g_win_w = nw;
+            g_win_h = nh;
+            LOGI("surface %p %dx%d vulkan=%d", g_win, nw, nh, g_use_vulkan);
 
-            if (g_video_ready.load() && g_dpy != EGL_NO_DISPLAY && g_cfg) {
+            if (g_use_vulkan == 1) {
+                extern void ultraman_notify_vulkan_recreate(ANativeWindow*, uint32_t, uint32_t);
+                ultraman_notify_vulkan_recreate(g_win, (uint32_t)nw, (uint32_t)nh);
+                g_surface_ok.store(true);
+            } else if (g_video_ready.load() && g_dpy != EGL_NO_DISPLAY && g_cfg) {
                 need_recreate = true;
             } else if (!g_video_ready.load()) {
                 need_start = true;
@@ -718,24 +716,29 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
 
     if (need_recreate) {
         GLLOCK;
+        eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (g_sfc != EGL_NO_SURFACE) {
+            eglDestroySurface(g_dpy, g_sfc);
+            g_sfc = EGL_NO_SURFACE;
+        }
         g_sfc = eglCreateWindowSurface(g_dpy, g_cfg, g_win, nullptr);
         if (g_sfc != EGL_NO_SURFACE) {
             if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
                 g_current_sfc = g_sfc;
                 g_surface_ok.store(true);
-                LOGI("EGL surface recreated OK");
-            } else {
-                LOGE("EGL makeCurrent failed after recreate");
+                LOGI("EGL surface recreated");
             }
-        } else {
-            LOGE("eglCreateWindowSurface failed 0x%x", eglGetError());
         }
     }
 
-    if (need_start) {
-        LOGI("surface arrived: start EGL");
-        ultraman_video_start();
-    }
+    if (need_start) ultraman_video_start();
+}
+
+void ultraman_video_get_window_and_size(ANativeWindow** outWin, uint32_t* outW, uint32_t* outH) {
+    GLLOCK;
+    if (outWin) *outWin = g_win;
+    if (outW) *outW = (uint32_t)g_win_w;
+    if (outH) *outH = (uint32_t)g_win_h;
 }
 
 bool ultraman_video_is_ready() {
