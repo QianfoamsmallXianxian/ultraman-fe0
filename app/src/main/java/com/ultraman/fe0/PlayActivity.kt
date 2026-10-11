@@ -66,31 +66,31 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
 
-        view.onSurfaceReady = {
-            if (initGuard) return@onSurfaceReady
+        view.onSurfaceReady = surfaceReady@{
+            if (initGuard) return@surfaceReady
             initGuard = true
-            if (!loaded) {
-                val realPath = copyIsoToPrivate(Uri.parse(gamePath!!))
-                if (realPath == null) {
-                    runOnUiThread {
-                        Toast.makeText(this, "ISO 复制失败", Toast.LENGTH_LONG).show()
-                        finish()
-                    }
-                    return@onSurfaceReady
+            if (loaded) return@surfaceReady
+
+            val realPath = copyIsoToPrivate(Uri.parse(gamePath!!))
+            if (realPath == null) {
+                runOnUiThread {
+                    Toast.makeText(this, "ISO 复制失败", Toast.LENGTH_LONG).show()
+                    finish()
                 }
-                Log.i("UltramanFE0", "native path: $realPath")
-                loaded = EmulatorBridge.nativeLoadGame(realPath)
-                if (!loaded) {
-                    runOnUiThread {
-                        Toast.makeText(this, "加载失败", Toast.LENGTH_LONG).show()
-                        finish()
-                    }
-                } else {
-                    val sram = File(savesDir, "$gameKey.sram")
-                    if (sram.exists()) EmulatorBridge.nativeLoadSram(sram.absolutePath)
-                    EmulatorBridge.nativeStart()
-                }
+                return@surfaceReady
             }
+            Log.i("UltramanFE0", "native path: $realPath")
+            loaded = EmulatorBridge.nativeLoadGame(realPath)
+            if (!loaded) {
+                runOnUiThread {
+                    Toast.makeText(this, "加载失败", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+                return@surfaceReady
+            }
+            val sram = File(savesDir, "$gameKey.sram")
+            if (sram.exists()) EmulatorBridge.nativeLoadSram(sram.absolutePath)
+            EmulatorBridge.nativeStart()
         }
     }
 
