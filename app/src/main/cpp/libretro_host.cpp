@@ -108,6 +108,16 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
         case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
+            if (data) {
+                const unsigned char *raw = (const unsigned char *)data;
+                char hex[3 * 32 + 1];
+                for (int i = 0; i < 32; i++) {
+                    snprintf(hex + i * 3, 4, "%02x ", raw[i]);
+                }
+                hex[3 * 32] = 0;
+                LOGI("AV_INFO raw[0..31]: %s", hex);
+                LOGI("AV_INFO sizeof=%zu", sizeof(struct retro_system_av_info));
+            }
             struct retro_system_av_info *info = (struct retro_system_av_info *)data;
             unsigned w = 0, h = 0;
             double fps = 0.0;
@@ -117,13 +127,10 @@ static bool env_cb(unsigned cmd, void *data) {
                 fps = info->timing.fps;
             }
             if (w == 0 || h == 0 || w > 4096 || h > 4096) {
-                LOGW("av_info invalid %ux%u -> ignore (keep %dx%d)",
-                     w, h, s_render_w, s_render_h);
+                LOGW("av_info invalid %ux%u fps=%.2f -> ignore", w, h, fps);
             } else {
-                LOGI("av_info core says %ux%u fps=%.2f (keep %dx%d)",
-                     w, h, fps, s_render_w, s_render_h);
+                LOGI("av_info valid %ux%u fps=%.2f", w, h, fps);
             }
-            /* 关键：不调用 set_hw_size，不触发 rebuild */
             return true;
         }
         case RETRO_ENVIRONMENT_SET_GEOMETRY: {
@@ -149,7 +156,13 @@ static bool env_cb(unsigned cmd, void *data) {
             return true;
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
-            LOGI("SET_HW_RENDER type=%d", cb->context_type);
+            if (!cb) {
+                LOGE("SET_HW_RENDER: null cb");
+                return false;
+            }
+            LOGI("SET_HW_RENDER req type=%d depth=%d stencil=%d %u.%u",
+                 cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0,
+                 cb->version_major, cb->version_minor);
 
             if (cb->context_type == RETRO_HW_CONTEXT_VULKAN) {
                 LOGW("Vulkan refused");
@@ -166,7 +179,6 @@ static bool env_cb(unsigned cmd, void *data) {
             }
 
             struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
-
             cb->context_reset           = ours->context_reset;
             cb->context_destroy         = ours->context_destroy;
             cb->get_current_framebuffer = ours->get_current_framebuffer;
@@ -177,16 +189,8 @@ static bool env_cb(unsigned cmd, void *data) {
             cb->cache_context           = false;
             cb->debug_context           = false;
 
-            if (requested == RETRO_HW_CONTEXT_OPENGL_ES2) {
-                cb->version_major = 2;
-                cb->version_minor = 0;
-            } else {
-                cb->version_major = 3;
-                cb->version_minor = 0;
-            }
-
             s_hw_render = true;
-            LOGI("HW accepted: type=%d ver=%u.%u", requested,
+            LOGI("HW accepted type=%d ver=%u.%u", cb->context_type,
                  cb->version_major, cb->version_minor);
 
             if (ultraman_video_is_ready()) {
@@ -248,6 +252,10 @@ static bool env_cb(unsigned cmd, void *data) {
             *(unsigned *)data = 1;
             return true;
         case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
+            LOGI("GET_LOG_INTERFACE: no impl");
+            return false;
+        case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
+            LOGI("GET_VFS_INTERFACE: no impl");
             return false;
         default:
             return false;
@@ -292,8 +300,11 @@ bool ultraman_load_game(const std::string &path) {
     retro_set_audio_sample_batch(on_ab);
     retro_set_input_poll(on_ip);
     retro_set_input_state(on_is);
+    extern bool ultraman_video_make_current();
+    ultraman_video_make_current();
+    LOGI(">>> calling retro_init <<<");
     retro_init();
-    LOGI("retro_init ok");
+    LOGI(">>> retro_init returned ok <<<");
 
     struct retro_system_info info{};
     retro_get_system_info(&info);
