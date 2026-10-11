@@ -41,6 +41,7 @@ static void perf_write(const char* fmt, ...) {
     va_end(ap); fflush(g_perf_log);
 }
 static void perf_frame(int64_t total_ns, int64_t retro_ns, int64_t present_ns, int fno) {
+    if (!g_perf_log) perf_open();
     g_perf_count++;
     g_perf_retro_sum += retro_ns;
     g_perf_present_sum += present_ns;
