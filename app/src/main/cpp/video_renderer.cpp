@@ -597,6 +597,7 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
 }
 
 
+
 void ultraman_video_set_geometry(unsigned w, unsigned h, double) {
     if (w > 0) g_hw_w = (int)w;
     if (h > 0) g_hw_h = (int)h;

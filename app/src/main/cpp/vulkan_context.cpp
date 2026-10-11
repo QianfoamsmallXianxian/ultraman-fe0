@@ -182,7 +182,21 @@ static bool create_swapchain(ANativeWindow* win, uint32_t w, uint32_t h) {
     sc.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     sc.preTransform = caps.currentTransform;
     sc.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
-    sc.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    {
+        uint32_t pm_n = 0;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(g_phys, g_surface, &pm_n, nullptr);
+        std::vector<VkPresentModeKHR> pm_list(pm_n);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(g_phys, g_surface, &pm_n, pm_list.data());
+        sc.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        for (uint32_t i = 0; i < pm_n; i++) {
+            if (pm_list[i] == VK_PRESENT_MODE_MAILBOX_KHR) { sc.presentMode = pm_list[i]; break; }
+        }
+        if (sc.presentMode == VK_PRESENT_MODE_FIFO_KHR) {
+            for (uint32_t i = 0; i < pm_n; i++) {
+                if (pm_list[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) { sc.presentMode = pm_list[i]; break; }
+            }
+        }
+    }
     sc.clipped = VK_TRUE;
 
     r = vkCreateSwapchainKHR(g_device, &sc, nullptr, &g_swapchain);

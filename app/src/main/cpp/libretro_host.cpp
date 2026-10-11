@@ -12,6 +12,7 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+#include <sched.h>
 
 #include <cstdarg>
 #include <ctime>
@@ -41,6 +42,35 @@ static void perf_write(const char* fmt, ...) {
     vfprintf(g_perf_log, fmt, ap);
     va_end(ap); fflush(g_perf_log);
 }
+
+static int pick_big_core() {
+    int  best_cpu = -1;
+    long best_hz  = -1;
+    int  ncpu     = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    for (int c = 0; c < ncpu; c++) {
+        char path[128];
+        snprintf(path, sizeof(path),
+                 "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", c);
+        FILE* f = fopen(path, "r");
+        if (!f) continue;
+        long hz = 0;
+        if (fscanf(f, "%ld", &hz) != 1) hz = 0;
+        fclose(f);
+        if (hz > best_hz) { best_hz = hz; best_cpu = c; }
+    }
+    if (best_cpu < 0 && ncpu > 0) best_cpu = ncpu - 1;
+    return best_cpu;
+}
+
+static void bind_to_big_core() {
+    int cpu = pick_big_core();
+    if (cpu < 0) return;
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(cpu, &set);
+    sched_setaffinity(0, sizeof(set), &set);
+}
+
 static void perf_frame(int64_t total_ns, int64_t retro_ns, int64_t vk_ns, int64_t present_ns, int fno) {
     if (!g_perf_log) perf_open();
     g_perf_count++;
@@ -488,6 +518,7 @@ void ultraman_start_loop() {
             sp.sched_priority = 0;
             sched_setscheduler(0, SCHED_FIFO, &sp);
             setpriority(PRIO_PROCESS, 0, -3);
+            bind_to_big_core();
         }
         LOGI("loop thread started");
         if (s_hw_render) {
