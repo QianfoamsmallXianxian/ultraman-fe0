@@ -102,11 +102,23 @@ static bool env_cb(unsigned cmd, void *data) {
             *(bool *)data = false;
             return true;
         case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
+            LOGI("SET_PERFORMANCE_LEVEL");
+            return true;
         case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
+            LOGI("SET_INPUT_DESCRIPTORS");
+            return true;
         case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+            LOGI("SET_CONTROLLER_INFO");
+            return true;
         case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+            LOGI("SET_MEMORY_MAPS");
+            return true;
         case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
+            LOGI("SET_SUBSYSTEM_INFO");
+            return true;
         case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
+            LOGI("SET_SUPPORT_ACHIEVEMENTS");
+            return true;
         case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: {
             if (data) {
                 const unsigned char *raw = (const unsigned char *)data;
