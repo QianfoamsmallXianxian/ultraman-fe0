@@ -499,17 +499,19 @@ void ultraman_video_present() {
 
 
     PSTEP(3);
+    static int last_vp_w = -1, last_vp_h = -1;
+    if (last_vp_w != winW || last_vp_h != winH) {
+        glViewport(0, 0, winW, winH);
+        last_vp_w = winW;
+        last_vp_h = winH;
+    }
     GL_BIND_FB(GL_READ_FRAMEBUFFER, g_hw_fbo);
     GL_BIND_FB(GL_DRAW_FRAMEBUFFER, 0);
-    glViewport(0, 0, winW, winH);
-    glDisable(GL_SCISSOR_TEST);
-    glClearColor(0.f, 0.f, 0.f, 1.f);
-    glClear(GL_COLOR_BUFFER_BIT);
     PSTEP(4);
     GL_BLIT_FB(
         0, 0, g_hw_w, g_hw_h,
         0, 0, winW, winH,
-        GL_COLOR_BUFFER_BIT, GL_LINEAR
+        GL_COLOR_BUFFER_BIT, GL_NEAREST
     );
     PSTEP(5);
     GL_BIND_FB(GL_FRAMEBUFFER, 0);
