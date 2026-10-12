@@ -790,6 +790,21 @@ void ultraman_video_stop() {
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
     nlog("set_surface(%s)", s ? "non-null" : "null");
+
+    if (s == nullptr) {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        int64_t now_ns = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        if (g_last_nonnull_ns > 0 && (now_ns - g_last_nonnull_ns) < 100000000LL) {
+            nlog("surface null: ignored (debounce, %lldms)",
+                 (long long)((now_ns - g_last_nonnull_ns) / 1000000));
+            return;
+        }
+    } else {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        g_last_nonnull_ns = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    }
     bool need_start = false;
     bool need_recreate = false;
     ANativeWindow* new_win = nullptr;
