@@ -106,6 +106,8 @@ static GLint  g_sw_uv    = -1;
 static GLuint g_hw_fbo   = 0;
 static GLuint g_hw_tex   = 0;
 static GLuint g_hw_depth = 0;
+static int    g_fbo_w   = 0;
+static int    g_fbo_h   = 0;
 static int    g_hw_w     = 960;
 static int    g_hw_h     = 544;
 static int    g_view_w   = 0;
@@ -250,6 +252,8 @@ static void gl_state_reset() {
 
 static void hw_destroy_fbo() {
     if (g_hw_fbo)   { GL_DEL_FB(1, &g_hw_fbo);    g_hw_fbo = 0; }
+    g_fbo_w = 0;
+    g_fbo_h = 0;
     if (g_hw_tex)   { glDeleteTextures(1, &g_hw_tex);        g_hw_tex = 0; }
     if (g_hw_depth) { glDeleteRenderbuffers(1, &g_hw_depth); g_hw_depth = 0; }
 }
@@ -285,6 +289,8 @@ static bool hw_create_fbo(int w, int h) {
         hw_destroy_fbo();
         return false;
     }
+    g_fbo_w = w;
+    g_fbo_h = h;
     LOGI("FBO %u %dx%d (tex=%u depth=%u)", g_hw_fbo, w, h, g_hw_tex, g_hw_depth);
     return true;
 }
@@ -422,6 +428,9 @@ void ultraman_video_set_hw(bool hw, int w, int h) {
     g_hw_mode.store(hw);
     if (w > 0) g_hw_w = w;
     if (h > 0) g_hw_h = h;
+    g_pending_w = g_hw_w;
+    g_pending_h = g_hw_h;
+    g_pending_rebuild.store(true);
     LOGI("video_set_hw %s %dx%d", hw ? "HW" : "SW", g_hw_w, g_hw_h);
 }
 
@@ -506,7 +515,7 @@ void ultraman_video_present() {
     GL_BIND_FB(GL_DRAW_FRAMEBUFFER, 0);
     PSTEP(4);
     GL_BLIT_FB(
-        0, 0, g_hw_w, g_hw_h,
+        0, 0, g_fbo_w, g_fbo_h,
         0, 0, winW, winH,
         GL_COLOR_BUFFER_BIT, GL_NEAREST
     );
