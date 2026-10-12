@@ -171,24 +171,19 @@ void ultraman_set_backend(int b) {
 
 void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_internal_resolution"] = resolution_for(r);
-    s_vars["ppsspp_vsync"] = v ? "enabled" : "disabled";
-    s_vars["ppsspp_audio_latency"] = a ? "low" : "high";
     if (s_vars.find("ppsspp_backend") == s_vars.end())
         s_vars["ppsspp_backend"] = "OpenGL";
     s_vars["ppsspp_gpu_hardware_transform"] = "enabled";
-    s_vars["ppsspp_frame_skip"] = "0";
-    s_vars["ppsspp_auto_frameskip"] = "disabled";
     s_vars["ppsspp_language"] = "Simplified Chinese";
+    s_vars["ppsspp_frameskip"] = "0";
+    s_vars["ppsspp_auto_frameskip"] = "disabled";
+    s_vars["ppsspp_inflight_frames"] = "3";
+    s_vars["ppsspp_texture_anisotropic_filtering"] = "4";
     s_vars["ppsspp_cpu_core"] = "JIT";
     s_vars["ppsspp_fast_memory"] = "enabled";
     s_vars["ppsspp_ignore_bad_memory_access"] = "enabled";
     s_vars["ppsspp_io_timing_method"] = "Fast";
-    s_vars["ppsspp_force_max_60fps"] = "enabled";
-    s_vars["ppsspp_vertex_cache"] = "enabled";
-    s_vars["ppsspp_lazy_texture_caching"] = "enabled";
-    s_vars["ppsspp_texture_scaling"] = "Auto";
     s_vars["ppsspp_texture_filtering"] = "Auto";
-    s_vars["ppsspp_anisotropic_filtering"] = "4";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;
     s_render_h = 272 * mult;
@@ -343,7 +338,11 @@ static bool env_cb(unsigned cmd, void *data) {
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_ES2 ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL_CORE ||
                 cb->context_type == RETRO_HW_CONTEXT_OPENGL) {
-                if (s_backend == 1) { LOGW("OpenGL requested but backend==1"); return false; }
+                if (s_backend == 1) {
+                    LOGW("core requested GL, downgrading from Vulkan");
+                    s_backend = 0;
+                    g_use_vulkan = 0;
+                }
                 s_core_ctx_reset   = cb->context_reset;
                 s_core_ctx_destroy = cb->context_destroy;
                 struct retro_hw_render_callback *ours = ultraman_get_hw_cb();
