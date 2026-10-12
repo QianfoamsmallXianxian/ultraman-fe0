@@ -11,6 +11,9 @@ class EmulatorView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
 
+    @Volatile var isSurfaceValid: Boolean = false
+        private set
+
     private var readyFired = false
     private var pendingCallback: (() -> Unit)? = null
     var onSurfaceRecreated: (() -> Unit)? = null
@@ -47,6 +50,7 @@ class EmulatorView @JvmOverloads constructor(
 
     override fun surfaceCreated(h: SurfaceHolder) {
         Log.i("UltramanFE0", "surfaceCreated size=${width}x${height}")
+        isSurfaceValid = true
         EmulatorBridge.nativeSetSurface(h.surface)
         if (!readyFired) {
             readyFired = true
@@ -58,11 +62,11 @@ class EmulatorView @JvmOverloads constructor(
 
     override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, ht: Int) {
         Log.i("UltramanFE0", "surfaceChanged ${w}x${ht}")
-        EmulatorBridge.nativeSetSurface(h.surface)
     }
 
     override fun surfaceDestroyed(h: SurfaceHolder) {
         Log.i("UltramanFE0", "surfaceDestroyed")
+        isSurfaceValid = false
         EmulatorBridge.nativeSetSurface(null)
     }
 }

@@ -24,6 +24,7 @@ class PlayActivity : AppCompatActivity() {
     private val cfg by lazy { ConfigManager(this) }
     private var gamePath: String? = null
     private var loaded = false
+    @Volatile private var pausedByUser = false
     private var initGuard = false
     private lateinit var savesDir: File
     private var gameKey = "game"
@@ -81,10 +82,13 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            Log.i("UltramanFE0", "surface recreated: reset ctx + resume")
+            Log.i("UltramanFE0", "surface recreated: reset ctx")
             if (loaded) {
                 EmulatorBridge.nativeResetContext()
-                EmulatorBridge.nativeResume()
+                if (!pausedByUser && view.isSurfaceValid) {
+                    Log.i("UltramanFE0", "surface recreated: resume")
+                    EmulatorBridge.nativeResume()
+                }
             }
         }
 
@@ -208,6 +212,7 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        pausedByUser = true
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             EmulatorBridge.nativePause()
@@ -217,7 +222,16 @@ class PlayActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemBars()
-        if (loaded) EmulatorBridge.nativeResume()
+        pausedByUser = false
+        if (loaded && view.isSurfaceValid) {
+            EmulatorBridge.nativeResume()
+        } else if (loaded) {
+            window.decorView.postDelayed({
+                if (!pausedByUser && view.isSurfaceValid && loaded) {
+                    EmulatorBridge.nativeResume()
+                }
+            }, 200)
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
