@@ -38,6 +38,10 @@ static void* s_pfn_glCheckFramebufferStatus = nullptr;
 static void* s_pfn_glGenRenderbuffers       = nullptr;
 static void* s_pfn_glRenderbufferStorage    = nullptr;
 static void* s_pfn_glBlitFramebuffer        = nullptr;
+static void* s_pfn_glMapBufferRange         = nullptr;
+static void* s_pfn_glUnmapBuffer            = nullptr;
+typedef void*     (*PFN_GLMAPBUFFERRANGE)(GLenum, GLintptr, GLsizeiptr, GLbitfield);
+typedef GLboolean (*PFN_GLUNMAPBUFFER)(GLenum);
 
 #define GL_GEN_FB       ((PFN_GLGENFB)s_pfn_glGenFramebuffers)
 #define GL_BIND_FB      ((PFN_GLBINDFB)s_pfn_glBindFramebuffer)
@@ -48,6 +52,8 @@ static void* s_pfn_glBlitFramebuffer        = nullptr;
 #define GL_GEN_RBO      ((PFN_GLGENRBO)s_pfn_glGenRenderbuffers)
 #define GL_RBO_STORAGE  ((PFN_GLRBOSTORE)s_pfn_glRenderbufferStorage)
 #define GL_BLIT_FB      ((PFN_GLBLIT)s_pfn_glBlitFramebuffer)
+#define GL_MAP_BUF      ((PFN_GLMAPBUFFERRANGE)s_pfn_glMapBufferRange)
+#define GL_UNMAP_BUF    ((PFN_GLUNMAPBUFFER)s_pfn_glUnmapBuffer)
 
 static void load_gl_funcs() {
     s_pfn_glGenFramebuffers         = (void*)eglGetProcAddress("glGenFramebuffers");
@@ -59,6 +65,8 @@ static void load_gl_funcs() {
     s_pfn_glGenRenderbuffers        = (void*)eglGetProcAddress("glGenRenderbuffers");
     s_pfn_glRenderbufferStorage     = (void*)eglGetProcAddress("glRenderbufferStorage");
     s_pfn_glBlitFramebuffer         = (void*)eglGetProcAddress("glBlitFramebuffer");
+    s_pfn_glMapBufferRange          = (void*)eglGetProcAddress("glMapBufferRange");
+    s_pfn_glUnmapBuffer             = (void*)eglGetProcAddress("glUnmapBuffer");
     LOGI("load_gl_funcs: blit=%p bindfb=%p genfb=%p",
          s_pfn_glBlitFramebuffer, s_pfn_glBindFramebuffer, s_pfn_glGenFramebuffers);
 }
@@ -86,6 +94,10 @@ static int g_win_h = 0;
 static EGLSurface g_current_sfc = EGL_NO_SURFACE;
 
 static GLuint g_sw_tex   = 0;
+static GLuint g_sw_pbo[2]   = {0, 0};
+static int    g_sw_pbo_idx  = 0;
+static size_t g_sw_pbo_size = 0;
+static bool   g_sw_pbo_ok   = false;
 static GLuint g_sw_prog  = 0;
 static GLuint g_sw_vbo   = 0;
 static GLint  g_sw_pos   = -1;
@@ -568,8 +580,29 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
         s_tex_h = (int)h;
         s_tex_alloc = true;
     } else {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)w, (GLsizei)h,
-                        GL_RGBA, GL_UNSIGNED_BYTE, data);
+        size_t need = (size_t)w * h * 4;
+        if (g_sw_pbo_ok && g_sw_pbo[0] && g_sw_pbo[1]
+            && s_pfn_glMapBufferRange && s_pfn_glUnmapBuffer
+            && need <= g_sw_pbo_size) {
+            g_sw_pbo_idx = 1 - g_sw_pbo_idx;
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo[g_sw_pbo_idx]);
+            void* ptr = GL_MAP_BUF(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)need,
+                                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+            if (ptr) {
+                memcpy(ptr, data, need);
+                GL_UNMAP_BUF(GL_PIXEL_UNPACK_BUFFER);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)w, (GLsizei)h,
+                                GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            } else {
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)w, (GLsizei)h,
+                                GL_RGBA, GL_UNSIGNED_BYTE, data);
+            }
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        } else {
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, (GLsizei)w, (GLsizei)h,
+                            GL_RGBA, GL_UNSIGNED_BYTE, data);
+        }
     }
 
     glViewport(0, 0, winW, winH);
@@ -657,6 +690,19 @@ void ultraman_video_start() {
     LOGI("GL renderer: %s", glGetString(GL_RENDERER));
 
     reload_gl_after_egl();
+
+    {
+        glGenBuffers(2, g_sw_pbo);
+        g_sw_pbo_size = 1920 * 1088 * 4;
+        for (int i = 0; i < 2; i++) {
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo[i]);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo_size, nullptr, GL_STREAM_DRAW);
+        }
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        GLenum err = glGetError();
+        g_sw_pbo_ok = (err == GL_NO_ERROR && g_sw_pbo[0] != 0 && g_sw_pbo[1] != 0);
+        LOGI("PBO init: ok=%d err=0x%x ids=%u,%u", g_sw_pbo_ok ? 1 : 0, err, g_sw_pbo[0], g_sw_pbo[1]);
+    }
 
     if (!g_hw_mode.load()) sw_setup();
 
