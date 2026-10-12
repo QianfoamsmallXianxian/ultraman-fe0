@@ -83,7 +83,7 @@ extern "C" JNIEXPORT jlong JNICALL Java_com_pssp_EmulatorBridge_nativeGetFrameCo
     return (jlong)ultraman_get_frame_count();
 }
 
-extern "C" JNIEXPORT jdouble JNICALL Java_com_pssp_EmulatorBridge_nativeGetCoreFps(JNIEnv *, jclass) { extern double ultraman_get_core_fps(); return ultraman_get_core_fps(); }
+extern "C" JNIEXPORT jdouble JNICALL Java_com_pssp_EmulatorBridge_nativeGetCoreFps(JNIEnv *, jclass) { extern "C" double ultraman_get_core_fps(); return ultraman_get_core_fps(); }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetAudioBuffer(JNIEnv *, jclass, jint level) {
     ultraman_set_audio_buffer(level);
 }

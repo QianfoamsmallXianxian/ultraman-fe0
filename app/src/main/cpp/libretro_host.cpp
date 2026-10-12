@@ -669,7 +669,7 @@ void ultraman_resume_render() {
     });
 }
 
-double ultraman_get_core_fps() { return s_core_fps; }
+extern "C" double ultraman_get_core_fps() { return s_core_fps; }
 
 void ultraman_stop_loop() {
     if (!s_run.exchange(false)) return;
