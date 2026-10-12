@@ -183,6 +183,9 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_force_max_60fps"] = "enabled";
     s_vars["ppsspp_vertex_cache"] = "enabled";
     s_vars["ppsspp_lazy_texture_caching"] = "enabled";
+    s_vars["ppsspp_texture_scaling"] = "Auto";
+    s_vars["ppsspp_texture_filtering"] = "Auto";
+    s_vars["ppsspp_anisotropic_filtering"] = "4";
     int mult = r; if (mult < 1) mult = 1; if (mult > 8) mult = 8;
     s_render_w = 480 * mult;
     s_render_h = 272 * mult;
