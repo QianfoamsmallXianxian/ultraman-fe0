@@ -834,7 +834,6 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
             }
         } else {
             nlog("surface null: keep EGL surface");
-        }
             g_win_w = 0;
             g_win_h = 0;
         }
