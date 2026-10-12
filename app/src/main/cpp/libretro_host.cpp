@@ -34,8 +34,8 @@ static int64_t perf_now_ns() {
 }
 static void perf_open() {
     if (g_perf_log) return;
-    mkdir("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs", 0777);
-    g_perf_log = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/perf.log", "a");
+    mkdir("/storage/emulated/0/Android/data/com.pssp/files/logs", 0777);
+    g_perf_log = fopen("/storage/emulated/0/Android/data/com.pssp/files/logs/perf.log", "a");
 }
 static void perf_write(const char* fmt, ...) {
     if (!g_perf_log) return;
@@ -437,7 +437,7 @@ static int16_t on_is(unsigned p, unsigned d, unsigned i, unsigned id) {
 bool ultraman_load_game(const std::string &path) {
     LOGI("load_game: %s", path.c_str());
 
-    s_system_dir = "/data/data/com.ultraman.fe0/files/system";
+    s_system_dir = "/data/data/com.pssp/files/system";
     mkdir(s_system_dir.c_str(), 0777);
 
     struct stat st;

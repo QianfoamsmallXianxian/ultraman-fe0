@@ -45,76 +45,76 @@ static void preload_gl_libs() {
 }
 
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
-    ulog_init("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs");
+    ulog_init("/storage/emulated/0/Android/data/com.pssp/files/logs");
     preload_gl_libs();
-    ulog_init("/data/data/com.ultraman.fe0/files/logs");
+    ulog_init("/data/data/com.pssp/files/logs");
     ulog_write(ANDROID_LOG_INFO, "UltramanFE0", "=== JNI_OnLoad ===");
     return JNI_VERSION_1_6;
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeInit(JNIEnv *, jclass, jobject) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeInit(JNIEnv *, jclass, jobject) {
     ulog_write(ANDROID_LOG_INFO, "UltramanFE0", "nativeInit");
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetBackend(JNIEnv *, jclass, jint b) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetBackend(JNIEnv *, jclass, jint b) {
     ultraman_set_backend(b);
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetOptions(JNIEnv *, jclass, jint r, jboolean v, jboolean a) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetOptions(JNIEnv *, jclass, jint r, jboolean v, jboolean a) {
     ultraman_set_options(r, v == JNI_TRUE, a == JNI_TRUE);
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeLoadGame(JNIEnv *env, jclass, jstring jp) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_pssp_EmulatorBridge_nativeLoadGame(JNIEnv *env, jclass, jstring jp) {
     const char *p = env->GetStringUTFChars(jp, nullptr);
     ulog_write(ANDROID_LOG_INFO, "UltramanFE0", "nativeLoadGame: %s", p);
     bool ok = ultraman_load_game(p);
     env->ReleaseStringUTFChars(jp, p);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeStart(JNIEnv *, jclass) { ultraman_start_loop(); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeStart(JNIEnv *, jclass) { ultraman_start_loop(); }
 extern void ultraman_pause_render();
 extern void ultraman_resume_render();
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativePause(JNIEnv *, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativePause(JNIEnv *, jclass) {
     ultraman_pause_render();
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeResume(JNIEnv *, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeResume(JNIEnv *, jclass) {
     ultraman_resume_render();
 }
 extern int64_t ultraman_get_frame_count();
 extern void ultraman_set_audio_buffer(int level);
-extern "C" JNIEXPORT jlong JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeGetFrameCount(JNIEnv *, jclass) {
+extern "C" JNIEXPORT jlong JNICALL Java_com_pssp_EmulatorBridge_nativeGetFrameCount(JNIEnv *, jclass) {
     return (jlong)ultraman_get_frame_count();
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetAudioBuffer(JNIEnv *, jclass, jint level) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetAudioBuffer(JNIEnv *, jclass, jint level) {
     ultraman_set_audio_buffer(level);
 }
 extern void ultraman_reset_context();
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeResetContext(JNIEnv *, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeResetContext(JNIEnv *, jclass) {
     ultraman_reset_context();
 }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeStop(JNIEnv *, jclass) { ultraman_stop_loop(); }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetSurface(JNIEnv *env, jclass, jobject s) { ultraman_set_surface(env, s); }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSetAudioEnabled(JNIEnv *, jclass, jboolean on) { ultraman_set_audio_enabled(on == JNI_TRUE); }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeKey(JNIEnv *, jclass, jint p, jint id, jboolean d) { ultraman_push_key(p, id, d == JNI_TRUE); }
-extern "C" JNIEXPORT void JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeReset(JNIEnv *, jclass) { retro_reset(); }
-extern "C" JNIEXPORT jstring JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeVersion(JNIEnv *env, jclass) {
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeStop(JNIEnv *, jclass) { ultraman_stop_loop(); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetSurface(JNIEnv *env, jclass, jobject s) { ultraman_set_surface(env, s); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetAudioEnabled(JNIEnv *, jclass, jboolean on) { ultraman_set_audio_enabled(on == JNI_TRUE); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeKey(JNIEnv *, jclass, jint p, jint id, jboolean d) { ultraman_push_key(p, id, d == JNI_TRUE); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeReset(JNIEnv *, jclass) { retro_reset(); }
+extern "C" JNIEXPORT jstring JNICALL Java_com_pssp_EmulatorBridge_nativeVersion(JNIEnv *env, jclass) {
     return env->NewStringUTF("ppsspp");
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSaveState(JNIEnv *env, jclass, jstring jp) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_pssp_EmulatorBridge_nativeSaveState(JNIEnv *env, jclass, jstring jp) {
     const char *p = env->GetStringUTFChars(jp, nullptr);
     bool ok = ultraman_save_state(p);
     env->ReleaseStringUTFChars(jp, p);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeLoadState(JNIEnv *env, jclass, jstring jp) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_pssp_EmulatorBridge_nativeLoadState(JNIEnv *env, jclass, jstring jp) {
     const char *p = env->GetStringUTFChars(jp, nullptr);
     bool ok = ultraman_load_state(p);
     env->ReleaseStringUTFChars(jp, p);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeSaveSram(JNIEnv *env, jclass, jstring jp) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_pssp_EmulatorBridge_nativeSaveSram(JNIEnv *env, jclass, jstring jp) {
     const char *p = env->GetStringUTFChars(jp, nullptr);
     bool ok = ultraman_save_sram(p);
     env->ReleaseStringUTFChars(jp, p);
     return ok ? JNI_TRUE : JNI_FALSE;
 }
-extern "C" JNIEXPORT jboolean JNICALL Java_com_ultraman_fe0_EmulatorBridge_nativeLoadSram(JNIEnv *env, jclass, jstring jp) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_pssp_EmulatorBridge_nativeLoadSram(JNIEnv *env, jclass, jstring jp) {
     const char *p = env->GetStringUTFChars(jp, nullptr);
     bool ok = ultraman_load_sram(p);
     env->ReleaseStringUTFChars(jp, p);

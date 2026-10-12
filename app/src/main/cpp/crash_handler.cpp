@@ -139,7 +139,7 @@ void install_native_crash_handler(const char* path) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_ultraman_fe0_NativeCrashLogger_installNativeCrashHandler(
+Java_com_pssp_NativeCrashLogger_installNativeCrashHandler(
         JNIEnv* env, jclass, jstring jdir) {
     const char* dir = env->GetStringUTFChars(jdir, nullptr);
     char path[512];

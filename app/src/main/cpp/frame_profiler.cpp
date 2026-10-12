@@ -32,7 +32,7 @@ FrameProfiler::~FrameProfiler() { shutdown(); }
 void FrameProfiler::init(const char* dir) {
     std::lock_guard<std::mutex> lk(mtx_);
     if (fp_) return;
-    snprintf(dir_, sizeof(dir_), "%s", dir ? dir : "/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs");
+    snprintf(dir_, sizeof(dir_), "%s", dir ? dir : "/storage/emulated/0/Android/data/com.pssp/files/logs");
     mkdir(dir_, 0777);
     char path[600];
     snprintf(path, sizeof(path), "%s/perf.log", dir_);

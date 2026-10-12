@@ -3,11 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.ultraman.fe0"
+    namespace = "com.pssp"
     compileSdk = 34
     ndkVersion = "25.2.9519653"
     defaultConfig {
-        applicationId = "com.ultraman.fe0"
+        applicationId = "com.pssp"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
