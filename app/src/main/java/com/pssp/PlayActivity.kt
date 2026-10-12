@@ -82,17 +82,11 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            dbg("onSurfaceRecreated ENTER")
-            Log.i("UltramanFE0", "onSurfaceRecreated ENTER loaded=$loaded surfaceValid=${view.isSurfaceValid} pausedByUser=$pausedByUser")
-            if (loaded) {
-                EmulatorBridge.nativeResetContext()
-                Log.i("UltramanFE0", "nativeResetContext done")
-                if (!pausedByUser && view.isSurfaceValid) {
-                    EmulatorBridge.nativeResume()
-                    Log.i("UltramanFE0", "nativeResume done")
-                } else {
-                    Log.i("UltramanFE0", "onSurfaceRecreated: skip resume (paused=${pausedByUser})")
-                }
+            dbg("onSurfaceRecreated: resume only")
+            Log.i("UltramanFE0", "onSurfaceRecreated: resume only")
+            if (loaded && view.isSurfaceValid) {
+                EmulatorBridge.nativeResume()
+                Log.i("UltramanFE0", "onSurfaceRecreated: nativeResume called")
             }
         }
 
