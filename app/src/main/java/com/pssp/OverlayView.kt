@@ -52,6 +52,11 @@ class OverlayView @JvmOverloads constructor(
             }
             val now = System.currentTimeMillis()
             val count = EmulatorBridge.nativeGetFrameCount()
+            try {
+                val f = java.io.File("/storage/emulated/0/Android/data/com.pssp/files/fps.log")
+                f.parentFile?.mkdirs()
+                f.appendText("[" + System.currentTimeMillis() + "] count=" + count + " last=" + lastFrameCount + " fps=" + fpsValue + "\n")
+            } catch (_: Throwable) {}
             if (lastTime > 0 && now - lastTime > 200) {
                 val dt = now - lastTime
                 val raw = (count - lastFrameCount) * 1000f / dt
