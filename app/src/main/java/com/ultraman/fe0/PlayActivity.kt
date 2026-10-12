@@ -120,7 +120,16 @@ class PlayActivity : AppCompatActivity() {
         return try {
             val dir = File(filesDir, "iso")
             dir.mkdirs()
-            val dst = File(dir, "game.iso")
+            var srcName = ""
+            try {
+                contentResolver.query(src, null, null, null, null)?.use { c ->
+                    val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0 && c.moveToFirst()) srcName = c.getString(idx) ?: ""
+                }
+            } catch (_: Exception) {}
+            if (srcName.isEmpty()) srcName = src.lastPathSegment?.let { Uri.decode(it) } ?: "game.iso"
+            val safeName = srcName.replace(Regex("[^a-zA-Z0-9_.-]"), "_")
+            val dst = File(dir, safeName)
             if (dst.exists() && dst.length() > 0) {
                 Log.i("UltramanFE0", "iso cached: ${dst.absolutePath}")
                 return dst.absolutePath
