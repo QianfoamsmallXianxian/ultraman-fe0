@@ -542,6 +542,7 @@ void ultraman_start_loop() {
 
             int64_t _t0 = perf_now_ns();
             do_pending_state();
+            if (g_use_vulkan == 1) { extern bool vk_prepare_frame(); vk_prepare_frame(); }
             retro_run();
             int64_t _t1 = perf_now_ns();
             int64_t _tv0 = perf_now_ns();
@@ -627,6 +628,7 @@ void ultraman_resume_render() {
         while (s_run.load()) {
             int64_t _t0 = perf_now_ns();
             do_pending_state();
+            if (g_use_vulkan == 1) { extern bool vk_prepare_frame(); vk_prepare_frame(); }
             retro_run();
             int64_t _t1 = perf_now_ns();
             int64_t _tv0 = perf_now_ns();

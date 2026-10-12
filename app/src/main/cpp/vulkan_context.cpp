@@ -43,6 +43,7 @@ static VkCommandPool      g_cmd_pool    = VK_NULL_HANDLE;
 
 static uint32_t           g_sync_index  = 0;
 static uint32_t           g_frame_idx   = 0;
+static uint32_t g_current_img_idx = 0;
 
 static std::mutex         g_queue_mtx;
 
@@ -384,9 +385,52 @@ struct retro_hw_render_interface_vulkan* vk_get_retro_interface() {
     return &g_retro_iface;
 }
 
+bool vk_prepare_frame() {
+    if (!g_sw_ready || g_images.empty()) return false;
+
+    vkWaitForFences(g_device, 1, &g_in_flight_fences[g_frame_idx], VK_TRUE, UINT64_MAX);
+
+    uint32_t img_idx = 0;
+    VkResult r = vkAcquireNextImageKHR(
+        g_device, g_swapchain, UINT64_MAX,
+        g_image_avail_sems[g_frame_idx], VK_NULL_HANDLE, &img_idx);
+    if (r != VK_SUCCESS && r != VK_SUBOPTIMAL_KHR) return false;
+
+    vkResetFences(g_device, 1, &g_in_flight_fences[g_frame_idx]);
+    g_sync_index = img_idx;
+    g_current_img_idx = img_idx;
+    return true;
+}
+
 bool vk_render_frame() {
-    static int vk_dbg_core_cmds = 0;
-    if (vk_dbg_core_cmds < 5) { LOGI("vk_frame: core_cmds=%zu src_view=%p", g_core_cmds.size(), (void*)g_src_view); vk_dbg_core_cmds++; }
+    if (!g_sw_ready || g_images.empty()) return false;
+    if (g_core_cmds.empty()) return false;
+
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo si{};
+    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    si.waitSemaphoreCount = 1;
+    si.pWaitSemaphores = &g_image_avail_sems[g_frame_idx];
+    si.pWaitDstStageMask = &waitStage;
+    si.commandBufferCount = (uint32_t)g_core_cmds.size();
+    si.pCommandBuffers = g_core_cmds.data();
+    si.signalSemaphoreCount = 1;
+    si.pSignalSemaphores = &g_render_done_sems[g_frame_idx];
+
+    vkQueueSubmit(g_queue, 1, &si, g_in_flight_fences[g_frame_idx]);
+
+    VkPresentInfoKHR pi{};
+    pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    pi.waitSemaphoreCount = 1;
+    pi.pWaitSemaphores = &g_render_done_sems[g_frame_idx];
+    pi.swapchainCount = 1;
+    pi.pSwapchains = &g_swapchain;
+    pi.pImageIndices = &g_current_img_idx;
+    vkQueuePresentKHR(g_queue, &pi);
+
+    g_frame_idx = (g_frame_idx + 1) % g_images.size();
+    return true;
+}
     if (!g_sw_ready || g_images.empty()) return false;
     if (g_core_cmds.empty()) return false;
 
