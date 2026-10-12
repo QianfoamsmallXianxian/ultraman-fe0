@@ -615,7 +615,11 @@ static std::thread s_render_thread;
 void ultraman_pause_render() {
     LOGI("pause_render: signaling stop");
     s_run.exchange(false);
-    LOGI("pause_render: signaled (no join)");
+    if (s_thread.joinable()) {
+        LOGI("pause_render: joining");
+        s_thread.join();
+        LOGI("pause_render: joined");
+    }
 }
 
 void ultraman_resume_render() {
@@ -624,14 +628,14 @@ void ultraman_resume_render() {
         LOGW("resume: core not loaded, skip");
         return;
     }
+    if (s_run.exchange(true)) {
+        LOGW("resume: already running");
+        return;
+    }
     if (s_thread.joinable()) {
         LOGI("resume: joining old thread");
         s_thread.join();
         LOGI("resume: old thread joined");
-    }
-    if (s_run.exchange(true)) {
-        LOGW("resume: already running");
-        return;
     }
 
     extern bool ultraman_video_make_current();
@@ -675,7 +679,7 @@ void ultraman_resume_render() {
 extern "C" double ultraman_get_core_fps() { return s_core_fps; }
 
 void ultraman_stop_loop() {
-    if (!s_run.exchange(false)) return;
+    s_run.exchange(false);
     LOGI("stop loop: joining thread");
     if (s_thread.joinable()) s_thread.join();
     LOGI("stop loop: thread joined");
