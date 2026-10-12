@@ -20,6 +20,10 @@ class ConfigManager(ctx: Context) {
     val audioEnabled: Boolean
         get() = true
 
+    var gamesDirUri: String?
+        get() = sp.getString("games_dir_uri", null)
+        set(v) = sp.edit().putString("games_dir_uri", v).apply()
+
     var showFps: Boolean
         get() = sp.getBoolean("show_fps", true)
         set(v) = sp.edit().putBoolean("show_fps", v).apply()

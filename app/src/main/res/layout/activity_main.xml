@@ -1,67 +1,126 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg"
-    android:padding="24dp">
-    <ImageView android:id="@+id/ivLogo"
-        android:layout_width="88dp" android:layout_height="88dp"
-        android:src="@drawable/ic_ultraman"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"/>
-    <TextView android:id="@+id/tvTitle"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="@string/app_name"
-        android:textColor="#E0E6ED" android:textSize="22sp" android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="@id/ivLogo"
-        app:layout_constraintStart_toEndOf="@id/ivLogo"/>
-    <TextView android:id="@+id/tvCore"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_marginStart="16dp" android:layout_marginTop="4dp"
-        android:text="内核: 加载中…"
-        android:textColor="#4A8CFF" android:textSize="11sp"
-        app:layout_constraintTop_toBottomOf="@id/tvTitle"
-        app:layout_constraintStart_toEndOf="@id/ivLogo"/>
-    <View android:id="@+id/divider"
-        android:layout_width="match_parent" android:layout_height="1dp"
-        android:layout_marginTop="24dp" android:background="#1F2A3A"
-        app:layout_constraintTop_toBottomOf="@id/ivLogo"/>
-    <TextView android:id="@+id/tvLabelGame"
-        android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_marginTop="24dp" android:text="游戏镜像"
-        android:textColor="#7D8FA8" android:textSize="12sp"
-        app:layout_constraintTop_toBottomOf="@id/divider"
-        app:layout_constraintStart_toStartOf="parent"/>
-    <LinearLayout android:id="@+id/cardGame"
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginTop="8dp" android:background="@drawable/bg_card"
-        android:orientation="horizontal" android:padding="16dp" android:gravity="center_vertical"
-        app:layout_constraintTop_toBottomOf="@id/tvLabelGame">
-        <TextView android:id="@+id/tvGameName"
-            android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="未选择镜像"
-            android:textColor="#E0E6ED" android:textSize="14sp"
-            android:maxLines="1" android:ellipsize="middle"/>
-        <Button android:id="@+id/btnPick"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/ivLogo"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_ultraman" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="#E0E6ED"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="内核: 加载中…"
+                android:textColor="#4A8CFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSettings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@drawable/bg_btn_secondary"
-            android:minWidth="0dp" android:minHeight="0dp"
-            android:paddingHorizontal="18dp" android:paddingVertical="10dp"
-            android:text="选择" android:textColor="#4A8CFF" android:textSize="13sp"/>
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:text="设置"
+            android:textColor="#7D8FA8"
+            android:textSize="12sp" />
     </LinearLayout>
-    <Button android:id="@+id/btnLaunch"
-        android:layout_width="match_parent" android:layout_height="64dp"
-        android:layout_marginTop="28dp" android:background="@drawable/bg_btn_primary"
-        android:enabled="false" android:letterSpacing="0.1"
-        android:text="启 动 游 戏" android:textColor="#FFFFFF"
-        android:textSize="17sp" android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@id/cardGame"/>
-    <Button android:id="@+id/btnSettings"
-        android:layout_width="match_parent" android:layout_height="52dp"
-        android:layout_marginTop="12dp" android:background="@drawable/bg_btn_secondary"
-        android:text="设 置" android:textColor="#7D8FA8" android:textSize="14sp"
-        app:layout_constraintTop_toBottomOf="@id/btnLaunch"/>
-</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="#1F2A3A" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tvDirPath"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="未选择目录"
+            android:textColor="#7D8FA8"
+            android:textSize="12sp"
+            android:maxLines="2"
+            android:ellipsize="middle" />
+
+        <Button
+            android:id="@+id/btnPickDir"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/bg_btn_secondary"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:text="选目录"
+            android:textColor="#4A8CFF"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_card">
+
+        <ListView
+            android:id="@+id/listGames"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#1F2A3A"
+            android:dividerHeight="1dp"
+            android:padding="6dp"
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
+
+        <TextView
+            android:id="@+id/tvEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="选择目录后，这里会列出所有游戏"
+            android:textColor="#7D8FA8"
+            android:textSize="13sp"
+            android:visibility="visible" />
+    </FrameLayout>
+</LinearLayout>
