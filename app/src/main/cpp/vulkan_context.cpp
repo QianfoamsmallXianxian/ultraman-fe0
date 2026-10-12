@@ -254,12 +254,22 @@ static bool create_swapchain(ANativeWindow* win, uint32_t w, uint32_t h) {
     return true;
 }
 
+static void _vklog(const char* msg, int a=0, int b=0) {
+    FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/vk_dbg.txt", "a");
+    if (f) { fprintf(f, "[init] %s a=%d b=%d\n", msg, a, b); fclose(f); }
+}
+
 bool vk_init(ANativeWindow* win, uint32_t w, uint32_t h) {
+    _vklog("enter", (int)w, (int)h);
+    if (g_initialized) { _vklog("already"); return true; }
     if (g_initialized) return true;
     g_window = win;
-    if (!create_instance()) return false;
-    if (!pick_device()) return false;
-    if (!create_swapchain(win, w, h)) return false;
+    if (!create_instance()) { _vklog("create_instance FAIL"); return false; }
+    _vklog("instance ok");
+    if (!pick_device()) { _vklog("pick_device FAIL"); return false; }
+    _vklog("device ok");
+    if (!create_swapchain(win, w, h)) { _vklog("create_swapchain FAIL"); return false; }
+    _vklog("swapchain ok");
 
     g_retro_ctx.instance = g_instance;
     g_retro_ctx.gpu = g_phys;
@@ -270,6 +280,7 @@ bool vk_init(ANativeWindow* win, uint32_t w, uint32_t h) {
     g_retro_ctx.presentation_queue = g_queue;
 
     g_initialized = true;
+    _vklog("ready");
     LOGI("Vulkan context ready");
     return true;
 }
