@@ -178,6 +178,13 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_auto_frameskip"] = "disabled";
     s_vars["ppsspp_inflight_frames"] = "3";
     s_vars["ppsspp_texture_anisotropic_filtering"] = "4";
+    s_vars["ppsspp_mulitsample_level"] = "1";
+    s_vars["ppsspp_texture_scaling_type"] = "Auto";
+    s_vars["ppsspp_texture_scaling_level"] = "1";
+    s_vars["ppsspp_spline_quality"] = "1";
+    s_vars["ppsspp_cropto16x9"] = "disabled";
+    s_vars["ppsspp_skip_buffer_effects"] = "disabled";
+    s_vars["ppsspp_skip_gpu_readbacks"] = "disabled";
     s_vars["ppsspp_cpu_core"] = "JIT";
     s_vars["ppsspp_fast_memory"] = "enabled";
     s_vars["ppsspp_ignore_bad_memory_access"] = "enabled";
@@ -520,9 +527,10 @@ void ultraman_start_loop() {
         {
             struct sched_param sp{};
             sp.sched_priority = 0;
-            sched_setscheduler(0, SCHED_FIFO, &sp);
-            setpriority(PRIO_PROCESS, 0, -3);
+            int r1 = sched_setscheduler(0, SCHED_FIFO, &sp);
+            int r2 = setpriority(PRIO_PROCESS, 0, -3);
             bind_to_big_core();
+            LOGI("loop prio: sched=%d nice=%d", r1, r2);
         }
         LOGI("loop thread started");
         if (s_hw_render) {
@@ -703,7 +711,11 @@ bool ultraman_save_state(const char *path) {
     s_state_result = false;
     s_state_cmd = 1;
     int waited = 0;
-    while (!s_state_done && waited < 4000) { usleep(500); waited++; }
+    while (!s_state_done && waited < 1000) {
+        if (!s_run.load()) return false;
+        usleep(500);
+        waited++;
+    }
     if (!s_state_done) return false;
     if (!s_state_result) return false;
     FILE *f = fopen(path, "wb");
@@ -729,7 +741,11 @@ bool ultraman_load_state(const char *path) {
     s_state_result = false;
     s_state_cmd = 2;
     int waited = 0;
-    while (!s_state_done && waited < 4000) { usleep(500); waited++; }
+    while (!s_state_done && waited < 1000) {
+        if (!s_run.load()) return false;
+        usleep(500);
+        waited++;
+    }
     if (!s_state_done) return false;
     return s_state_result;
 }

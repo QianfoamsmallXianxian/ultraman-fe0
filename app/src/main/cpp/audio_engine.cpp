@@ -53,7 +53,7 @@ static void cb(SLAndroidSimpleBufferQueueItf, void *) {
 
 void ultraman_set_audio_buffer(int level) {
     int size;
-    if (level <= 0) size = 1024;
+    if (level <= 0) size = 2048;
     else if (level == 1) size = 4096;
     else size = 8192;
     g_buf_samples.store(size);
