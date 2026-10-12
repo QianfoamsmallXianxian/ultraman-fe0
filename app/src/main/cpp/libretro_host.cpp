@@ -12,6 +12,21 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+
+#include <cstdarg>
+static void dbg(const char* fmt, ...) {
+    FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/debug.log", "a");
+    if (!f) return;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    fprintf(f, "[%ld.%03ld] ", (long)ts.tv_sec, ts.tv_nsec / 1000000);
+    va_list ap; va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fprintf(f, "\n");
+    fclose(f);
+}
+
 #include <vector>
 #include <sched.h>
 
@@ -613,6 +628,7 @@ void ultraman_start_loop() {
 static std::thread s_render_thread;
 
 void ultraman_pause_render() {
+    dbg("pause ENTER");
     LOGI("pause_render: signaling stop");
     s_run.exchange(false);
     if (s_thread.joinable()) {
@@ -620,28 +636,35 @@ void ultraman_pause_render() {
         s_thread.join();
         LOGI("pause_render: joined");
     }
+    dbg("pause DONE");
 }
 
 void ultraman_resume_render() {
+    dbg("resume ENTER");
     LOGI("resume_render");
     if (!s_loaded.load()) {
         LOGW("resume: core not loaded, skip");
         return;
     }
     if (s_run.exchange(true)) {
+        dbg("resume: already running, skip");
         LOGW("resume: already running");
         return;
     }
+    dbg("resume: before join, joinable=%d", (int)s_thread.joinable());
     if (s_thread.joinable()) {
         LOGI("resume: joining old thread");
         s_thread.join();
         LOGI("resume: old thread joined");
+        dbg("resume: old thread joined");
     }
 
     extern bool ultraman_video_make_current();
     extern void ultraman_video_present();
 
+    dbg("resume: before spawn");
     s_thread = std::thread([]{
+        dbg("resume thread RUNNING");
         LOGI("resume thread started");
         if (s_hw_render) {
             ultraman_video_make_current();
@@ -672,6 +695,7 @@ void ultraman_resume_render() {
             if (next > now) std::this_thread::sleep_until(next);
             else next = now;
         }
+        dbg("resume thread EXITED");
         LOGI("resume thread ended");
     });
 }
@@ -679,9 +703,10 @@ void ultraman_resume_render() {
 extern "C" double ultraman_get_core_fps() { return s_core_fps; }
 
 void ultraman_stop_loop() {
+    dbg("stop_loop ENTER");
     s_run.exchange(false);
     LOGI("stop loop: joining thread");
-    if (s_thread.joinable()) s_thread.join();
+    if (s_thread.joinable()) { s_thread.join(); dbg("stop_loop joined"); }
     LOGI("stop loop: thread joined");
 
     if (s_loaded.exchange(false)) {

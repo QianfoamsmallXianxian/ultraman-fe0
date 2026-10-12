@@ -82,6 +82,7 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
+            dbg("onSurfaceRecreated ENTER")
             Log.i("UltramanFE0", "onSurfaceRecreated ENTER loaded=$loaded surfaceValid=${view.isSurfaceValid} pausedByUser=$pausedByUser")
             if (loaded) {
                 EmulatorBridge.nativeResetContext()
@@ -209,30 +210,43 @@ class PlayActivity : AppCompatActivity() {
         toast(if (EmulatorBridge.nativeLoadState(f.absolutePath)) "已读取" else "读取失败")
     }
 
+    private fun dbg(msg: String) {
+        try {
+            val f = java.io.File("/storage/emulated/0/Android/data/com.pssp/files/debug.log")
+            f.parentFile?.mkdirs()
+            f.appendText("[" + System.currentTimeMillis() + "] " + msg + "\n")
+        } catch (_: Throwable) {}
+    }
+
     private fun toast(s: String) {
         Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
     }
 
     override fun onPause() {
+        dbg("onPause ENTER")
         super.onPause()
         Log.i("UltramanFE0", "onPause ENTER loaded=$loaded")
         pausedByUser = true
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             Log.i("UltramanFE0", "onPause: SRAM saved")
+            dbg("onPause: calling nativePause")
             EmulatorBridge.nativePause()
+            dbg("onPause: nativePause returned")
             Log.i("UltramanFE0", "onPause: nativePause returned")
         }
     }
 
     override fun onResume() {
+        dbg("onResume ENTER")
         super.onResume()
         Log.i("UltramanFE0", "onResume ENTER loaded=$loaded surfaceValid=${view.isSurfaceValid}")
         hideSystemBars()
         pausedByUser = false
         if (loaded && view.isSurfaceValid) {
+            dbg("onResume: calling nativeResume")
             EmulatorBridge.nativeResume()
-            Log.i("UltramanFE0", "onResume: nativeResume called")
+            dbg("onResume: nativeResume returned")
         } else if (loaded) {
             Log.i("UltramanFE0", "onResume: waiting for surface")
             window.decorView.postDelayed({
