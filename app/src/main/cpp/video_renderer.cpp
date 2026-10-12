@@ -862,7 +862,11 @@ void ultraman_video_set_hw_size(int w, int h) {
 }
 
 bool ultraman_video_create_fbo_now() {
-    GLLOCK;
+    if (!g_gl_mtx.try_lock()) {
+        LOGW("create_fbo_now: lock busy, skip");
+        return false;
+    }
+    std::lock_guard<std::recursive_mutex> _lg(g_gl_mtx, std::adopt_lock);
     if (g_hw_fbo) {
         LOGI("create_fbo_now: already exists %u", g_hw_fbo);
         return true;

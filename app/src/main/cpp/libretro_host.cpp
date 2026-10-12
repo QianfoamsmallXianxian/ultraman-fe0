@@ -152,6 +152,7 @@ static void do_pending_state();
 static std::atomic<bool> s_loaded{false};
 static double s_core_fps = 60.0;
 static std::thread s_thread;
+static std::atomic<bool> s_thread_done{true};
 static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
 static std::map<std::string, std::string> s_vars;
@@ -548,6 +549,7 @@ void ultraman_start_loop() {
 
     ultraman_video_release_current();
 
+    s_thread_done.store(false);
     s_thread = std::thread([]{
         {
             struct sched_param sp{};
@@ -619,6 +621,7 @@ void ultraman_start_loop() {
                 next = now;
             }
         }
+        s_thread_done.store(true);
         LOGI("loop thread ended");
     });
 }
@@ -631,8 +634,19 @@ void ultraman_pause_render() {
     LOGI("pause_render: signaling stop");
     s_run.exchange(false);
     if (s_thread.joinable()) {
-        LOGI("pause_render: detaching thread");
-        s_thread.detach();
+        auto start = std::chrono::steady_clock::now();
+        while (!s_thread_done.load()) {
+            if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(500)) {
+                LOGW("pause_render: timeout, detaching");
+                s_thread.detach();
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        s_thread.join();
+        LOGI("pause_render: joined");
+    } else {
+        LOGI("pause_render: not joinable");
     }
     LOGI("pause_render: done");
 }
@@ -656,6 +670,7 @@ void ultraman_resume_render() {
     extern bool ultraman_video_make_current();
     extern void ultraman_video_present();
 
+    s_thread_done.store(false);
     s_thread = std::thread([]{
         LOGI("resume thread started");
         if (s_hw_render) {
@@ -688,6 +703,7 @@ void ultraman_resume_render() {
             if (next > now) std::this_thread::sleep_until(next);
             else next = now;
         }
+        s_thread_done.store(true);
         LOGI("resume thread ended");
     });
 }
