@@ -16,7 +16,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".PlayActivity" android:exported="false" android:theme="@style/Theme.UltramanFE0.Fullscreen" android:screenOrientation="landscape" android:launchMode="singleTask" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode|navigation|density|screenBrightness|locale|layoutDirection|fontScale|touchscreen|keyboard"/>
+        <activity android:name=".PlayActivity" android:exported="false" android:theme="@style/Theme.UltramanFE0.Fullscreen" android:screenOrientation="landscape" android:launchMode="singleTask" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode|navigation|density|locale|layoutDirection|fontScale|touchscreen|keyboard"/>
         <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="portrait"/>
         <activity android:name=".ButtonEditorActivity" android:exported="false" android:screenOrientation="landscape" android:configChanges="orientation|screenSize|keyboardHidden"/>
     </application>
