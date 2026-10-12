@@ -833,14 +833,8 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
                 need_start = true;
             }
         } else {
-            nlog("surface null: releasing EGL surface");
-            if (g_dpy != EGL_NO_DISPLAY && g_sfc != EGL_NO_SURFACE) {
-                eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-                eglDestroySurface(g_dpy, g_sfc);
-                g_sfc = EGL_NO_SURFACE;
-                g_current_sfc = EGL_NO_SURFACE;
-                nlog("EGL surface released");
-            }
+            nlog("surface null: keep EGL surface");
+        }
             g_win_w = 0;
             g_win_h = 0;
         }
