@@ -178,16 +178,14 @@ class PlayActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
-        val items = arrayOf("保存即时存档", "加载即时存档", "保存游戏内存档", "加载游戏内存档", "退出游戏")
+        val items = arrayOf("保存即时存档", "加载即时存档", "退出游戏")
         AlertDialog.Builder(this)
             .setTitle("菜单")
             .setItems(items) { _, w ->
                 when (w) {
                     0 -> saveState()
                     1 -> loadState()
-                    2 -> saveSram()
-                    3 -> loadSram()
-                    4 -> finish()
+                    2 -> finish()
                 }
             }
             .setNegativeButton("取消", null)
@@ -205,16 +203,6 @@ class PlayActivity : AppCompatActivity() {
         val f = stateFile()
         if (!f.exists()) { toast("无存档"); return }
         toast(if (EmulatorBridge.nativeLoadState(f.absolutePath)) "已读取" else "读取失败")
-    }
-
-    private fun saveSram() {
-        toast(if (EmulatorBridge.nativeSaveSram(sramFile().absolutePath)) "内存档已保存" else "保存失败")
-    }
-
-    private fun loadSram() {
-        val f = sramFile()
-        if (!f.exists()) { toast("无内存档"); return }
-        toast(if (EmulatorBridge.nativeLoadSram(f.absolutePath)) "已读取" else "读取失败")
     }
 
     private fun toast(s: String) {

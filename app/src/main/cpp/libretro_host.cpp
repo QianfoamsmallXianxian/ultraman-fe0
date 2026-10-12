@@ -12,6 +12,7 @@
 #include <map>
 #include <sys/stat.h>
 #include "libretro.h"
+#include <vector>
 #include <sched.h>
 
 #include <cstdarg>
@@ -539,6 +540,7 @@ void ultraman_start_loop() {
             auto t0 = std::chrono::steady_clock::now();
 
             int64_t _t0 = perf_now_ns();
+            do_pending_state();
             retro_run();
             int64_t _t1 = perf_now_ns();
             int64_t _tv0 = perf_now_ns();
@@ -623,6 +625,7 @@ void ultraman_resume_render() {
         auto next = std::chrono::steady_clock::now();
         while (s_run.load()) {
             int64_t _t0 = perf_now_ns();
+            do_pending_state();
             retro_run();
             int64_t _t1 = perf_now_ns();
             int64_t _tv0 = perf_now_ns();
@@ -670,18 +673,42 @@ void ultraman_stop_loop() {
     LOGI("stop loop: done");
 }
 
+
+static std::atomic<int>    s_state_cmd{0};
+static std::atomic<bool>   s_state_done{true};
+static std::atomic<bool>   s_state_result{false};
+static std::vector<uint8_t> s_state_buf;
+
+static void do_pending_state() {
+    int cmd = s_state_cmd.exchange(0);
+    if (cmd == 0) return;
+    if (cmd == 1) {
+        size_t sz = retro_serialize_size();
+        if (sz > 0) {
+            s_state_buf.resize(sz);
+            s_state_result = retro_serialize(s_state_buf.data(), sz);
+        } else {
+            s_state_result = false;
+        }
+    } else if (cmd == 2) {
+        s_state_result = retro_unserialize(s_state_buf.data(), s_state_buf.size());
+    }
+    s_state_done = true;
+}
+
 bool ultraman_save_state(const char *path) {
-    size_t size = retro_serialize_size();
-    if (size == 0) return false;
-    void *buf = malloc(size);
-    if (!buf) return false;
-    if (!retro_serialize(buf, size)) { free(buf); return false; }
+    s_state_done = false;
+    s_state_result = false;
+    s_state_cmd = 1;
+    int waited = 0;
+    while (!s_state_done && waited < 4000) { usleep(500); waited++; }
+    if (!s_state_done) return false;
+    if (!s_state_result) return false;
     FILE *f = fopen(path, "wb");
-    if (!f) { free(buf); return false; }
-    size_t w = fwrite(buf, 1, size, f);
+    if (!f) return false;
+    size_t w = fwrite(s_state_buf.data(), 1, s_state_buf.size(), f);
     fclose(f);
-    free(buf);
-    return w == size;
+    return w == s_state_buf.size();
 }
 
 bool ultraman_load_state(const char *path) {
@@ -691,13 +718,18 @@ bool ultraman_load_state(const char *path) {
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz <= 0) { fclose(f); return false; }
-    void *buf = malloc((size_t)sz);
-    if (!buf) { fclose(f); return false; }
-    size_t r = fread(buf, 1, (size_t)sz, f);
+    s_state_buf.resize((size_t)sz);
+    size_t r = fread(s_state_buf.data(), 1, (size_t)sz, f);
     fclose(f);
-    bool ok = retro_unserialize(buf, r);
-    free(buf);
-    return ok;
+    if (r != (size_t)sz) return false;
+
+    s_state_done = false;
+    s_state_result = false;
+    s_state_cmd = 2;
+    int waited = 0;
+    while (!s_state_done && waited < 4000) { usleep(500); waited++; }
+    if (!s_state_done) return false;
+    return s_state_result;
 }
 
 bool ultraman_save_sram(const char *path) {
