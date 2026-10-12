@@ -19,7 +19,6 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val spBackend = findViewById<Spinner>(R.id.spBackend)
         val sbRes = findViewById<SeekBar>(R.id.sbRes)
         val tvRes = findViewById<TextView>(R.id.tvRes)
         val swFull = findViewById<SwitchCompat>(R.id.swFullscreen)
@@ -28,27 +27,7 @@ class SettingsActivity : AppCompatActivity() {
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
-        spBackend.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("OpenGL")
-        )
-        spBackend.setSelection(cfg.backend.coerceIn(0, 1))
-        spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                cfg.backend = pos
-                if (pos == 1) {
-                    Toast.makeText(
-                        this@SettingsActivity,
-                        "Vulkan 需要核心支持，可能回退到 OpenGL",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            override fun onNothingSelected(p: AdapterView<*>?) {}
-        }
-
-        sbRes.max = 4
+        sbRes.max = 2
         sbRes.progress = cfg.resolution - 1
         tvRes.text = "${cfg.resolution}x"
         sbRes.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {

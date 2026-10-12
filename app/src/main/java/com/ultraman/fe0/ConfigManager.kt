@@ -6,7 +6,7 @@ class ConfigManager(ctx: Context) {
     private val sp = ctx.getSharedPreferences("ultraman_config", Context.MODE_PRIVATE)
 
     var resolution: Int
-        get() = sp.getInt("resolution", 2)
+        get() = sp.getInt("resolution", 2).coerceIn(1, 3)
         set(v) = sp.edit().putInt("resolution", v).apply()
 
     var fullscreen: Boolean
@@ -19,10 +19,6 @@ class ConfigManager(ctx: Context) {
 
     val audioEnabled: Boolean
         get() = true
-
-    var backend: Int
-        get() = sp.getInt("backend", 0)
-        set(v) = sp.edit().putInt("backend", v).apply()
 
     var showFps: Boolean
         get() = sp.getBoolean("show_fps", true)

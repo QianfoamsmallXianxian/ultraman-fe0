@@ -76,7 +76,6 @@ class PlayActivity : AppCompatActivity() {
 
         if (!EmulatorBridge.ensureLoaded()) { finish(); return }
         EmulatorBridge.nativeInit(this)
-        EmulatorBridge.nativeSetBackend(cfg.backend)
         EmulatorBridge.nativeSetOptions(cfg.resolution, cfg.vsync, cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioEnabled(cfg.audioEnabled)
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
