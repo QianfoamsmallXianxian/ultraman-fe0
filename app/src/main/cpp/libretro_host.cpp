@@ -652,12 +652,14 @@ void ultraman_pause_render() {
 }
 
 void ultraman_resume_render() {
+    { FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/native_dbg.log","a"); if(f){ fprintf(f,"resume_render ENTER s_loaded=%d s_run=%d\n", s_loaded.load()?1:0, s_run.load()?1:0); fclose(f);} }
     LOGI("resume_render");
     if (!s_loaded.load()) {
         LOGW("resume: core not loaded, skip");
         return;
     }
     if (s_run.exchange(true)) {
+        { FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/native_dbg.log","a"); if(f){ fprintf(f,"resume: already running (dbg)\n"); fclose(f);} }
         LOGW("resume: already running");
         return;
     }

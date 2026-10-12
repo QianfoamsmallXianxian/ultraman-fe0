@@ -75,6 +75,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativePause(JNIEn
     ultraman_pause_render();
 }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeResume(JNIEnv *, jclass) {
+    { FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/native_dbg.log","a"); if(f){ fprintf(f,"JNI nativeResume called\n"); fclose(f);} }
     ultraman_resume_render();
 }
 extern int64_t ultraman_get_frame_count();
