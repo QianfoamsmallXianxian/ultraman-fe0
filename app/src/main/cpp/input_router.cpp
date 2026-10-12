@@ -1,6 +1,22 @@
 #include <atomic>
 #include "libretro.h"
 
+#ifndef RETRO_DEVICE_ANALOG
+#define RETRO_DEVICE_ANALOG 5
+#endif
+#ifndef RETRO_DEVICE_INDEX_ANALOG_LEFT
+#define RETRO_DEVICE_INDEX_ANALOG_LEFT 0
+#endif
+#ifndef RETRO_DEVICE_INDEX_ANALOG_RIGHT
+#define RETRO_DEVICE_INDEX_ANALOG_RIGHT 1
+#endif
+#ifndef RETRO_DEVICE_ID_ANALOG_X
+#define RETRO_DEVICE_ID_ANALOG_X 0
+#endif
+#ifndef RETRO_DEVICE_ID_ANALOG_Y
+#define RETRO_DEVICE_ID_ANALOG_Y 1
+#endif
+
 static std::atomic<int16_t> s_st[4][16];
 static std::atomic<int16_t> s_ax[4];
 static std::atomic<int16_t> s_ay[4];
