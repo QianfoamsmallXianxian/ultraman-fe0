@@ -6,7 +6,7 @@ class ConfigManager(ctx: Context) {
     private val sp = ctx.getSharedPreferences("ultraman_config", Context.MODE_PRIVATE)
 
     var resolution: Int
-        get() = sp.getInt("resolution", 2).coerceIn(1, 3)
+        get() = sp.getInt("resolution", 3)
         set(v) = sp.edit().putInt("resolution", v).apply()
 
     var fullscreen: Boolean

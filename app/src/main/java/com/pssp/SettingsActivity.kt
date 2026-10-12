@@ -27,7 +27,7 @@ class SettingsActivity : AppCompatActivity() {
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnEdit = findViewById<Button>(R.id.btnEditButtons)
 
-        sbRes.max = 2
+        sbRes.max = 4
         sbRes.progress = cfg.resolution - 1
         tvRes.text = "${cfg.resolution}x"
         sbRes.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
