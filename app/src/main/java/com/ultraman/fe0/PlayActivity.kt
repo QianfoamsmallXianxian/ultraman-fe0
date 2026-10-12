@@ -224,6 +224,21 @@ class PlayActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        val newPath = intent.dataString
+        if (newPath.isNullOrEmpty()) return
+        if (newPath == gamePath) return
+        setIntent(intent)
+        gamePath = newPath
+        cfg.lastGamePath = newPath
+        if (loaded) {
+            EmulatorBridge.nativeStop()
+            loaded = false
+        }
+        recreate()
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (loaded) {

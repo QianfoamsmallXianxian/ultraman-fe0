@@ -459,6 +459,13 @@ bool ultraman_load_game(const std::string &path) {
     fclose(probe);
     LOGI("load_game: fopen ok");
 
+    if (s_loaded.load()) {
+        LOGI(">>> unload previous game <<<");
+        retro_unload_game();
+        retro_deinit();
+        s_loaded.store(false);
+    }
+
     retro_set_environment(env_cb);
     retro_set_video_refresh(ultraman_video_cb);
     retro_set_audio_sample(on_a);
