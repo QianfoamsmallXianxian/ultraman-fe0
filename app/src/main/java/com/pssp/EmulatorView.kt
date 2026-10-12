@@ -33,19 +33,7 @@ class EmulatorView @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        val realSize = android.graphics.Point()
-        wm.defaultDisplay.getRealSize(realSize)
-
-        var w = realSize.x
-        var h = realSize.y
-
-        if (w < h) {
-            val t = w; w = h; h = t
-        }
-
-        Log.i("UltramanFE0", "onMeasure real=${realSize.x}x${realSize.y} -> ${w}x${h}")
-        setMeasuredDimension(w, h)
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     override fun surfaceCreated(h: SurfaceHolder) {
