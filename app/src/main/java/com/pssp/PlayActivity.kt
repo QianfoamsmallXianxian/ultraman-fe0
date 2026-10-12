@@ -260,7 +260,7 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (loaded) {
+        if (isFinishing && loaded) {
             EmulatorBridge.nativeStop()
             loaded = false
         }
