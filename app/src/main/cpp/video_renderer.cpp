@@ -765,6 +765,10 @@ void ultraman_video_start() {
 
 void ultraman_video_stop() {
     GLLOCK;
+    if (g_win) {
+        ANativeWindow_release(g_win);
+        g_win = nullptr;
+    }
         g_video_ready.store(false);
     g_hw_ready.store(false);
 
@@ -821,14 +825,14 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         }
 
         
-        if (g_win) {
-            ANativeWindow_release(g_win);
-            g_win = nullptr;
-        }
+        // keep g_win (Android jitter)
 
         extern int g_use_vulkan;
 
         if (new_win) {
+            if (g_win && g_win != new_win) {
+                ANativeWindow_release(g_win);
+            }
             g_win = new_win;
             nw = ANativeWindow_getWidth(g_win);
             nh = ANativeWindow_getHeight(g_win);
