@@ -15,7 +15,7 @@
 #include "libretro.h"
 #include "frame_profiler.h"
 
-#define LOGI(...) ulog_write(ANDROID_LOG_INFO,  "UltramanFE0", __VA_ARGS__)
+#define LOGI(...) ((void)0)
 #define LOGE(...) ulog_write(ANDROID_LOG_ERROR, "UltramanFE0", __VA_ARGS__)
 #define LOGW(...) ulog_write(ANDROID_LOG_WARN,  "UltramanFE0", __VA_ARGS__)
 
