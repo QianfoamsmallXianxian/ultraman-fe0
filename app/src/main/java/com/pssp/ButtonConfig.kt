@@ -8,13 +8,17 @@ data class ButtonDef(
     var ny: Float,
     var r: Float,
     var alpha: Float,
-    val id: Int
+    val id: Int,
+    var type: Int = 0
 )
 
 class ButtonConfigManager(ctx: Context) {
     private val sp = ctx.getSharedPreferences("ultraman_buttons", Context.MODE_PRIVATE)
 
     companion object {
+        const val TYPE_KEY = 0
+        const val TYPE_ANALOG = 1
+
         val DEFAULT = listOf(
             ButtonDef("L", 0.08f, 0.10f, 0.055f, 0.5f, EmulatorBridge.BTN_L),
             ButtonDef("R", 0.92f, 0.10f, 0.055f, 0.5f, EmulatorBridge.BTN_R),
@@ -27,7 +31,8 @@ class ButtonConfigManager(ctx: Context) {
             ButtonDef("T", 0.82f, 0.56f, 0.055f, 0.5f, EmulatorBridge.BTN_Y),
             ButtonDef("X", 0.74f, 0.72f, 0.055f, 0.5f, EmulatorBridge.BTN_X),
             ButtonDef("O", 0.90f, 0.72f, 0.055f, 0.5f, EmulatorBridge.BTN_B),
-            ButtonDef("S", 0.82f, 0.88f, 0.055f, 0.5f, EmulatorBridge.BTN_A)
+            ButtonDef("S", 0.82f, 0.88f, 0.055f, 0.5f, EmulatorBridge.BTN_A),
+            ButtonDef("◎", 0.33f, 0.72f, 0.11f, 0.5f, -1, TYPE_ANALOG)
         )
     }
 
@@ -37,20 +42,16 @@ class ButtonConfigManager(ctx: Context) {
         for (i in DEFAULT.indices) {
             val s = sp.getString("btn_$i", null) ?: continue
             val p = s.split("|")
-            if (p.size == 6) {
-                list.add(ButtonDef(p[0],
+            if (p.size >= 6) {
+                list.add(ButtonDef(
+                    p[0],
                     p[1].toFloatOrNull() ?: 0f,
                     p[2].toFloatOrNull() ?: 0f,
                     p[3].toFloatOrNull() ?: 0.05f,
                     p[4].toFloatOrNull() ?: 0.5f,
-                    p[5].toIntOrNull() ?: 0))
-            } else if (p.size == 5) {
-                list.add(ButtonDef(p[0],
-                    p[1].toFloatOrNull() ?: 0f,
-                    p[2].toFloatOrNull() ?: 0f,
-                    p[3].toFloatOrNull() ?: 0.05f,
-                    0.5f,
-                    p[4].toIntOrNull() ?: 0))
+                    p[5].toIntOrNull() ?: 0,
+                    if (p.size >= 7) p[6].toIntOrNull() ?: 0 else 0
+                ))
             }
         }
         return if (list.size == DEFAULT.size) list else DEFAULT.toMutableList()
@@ -59,7 +60,7 @@ class ButtonConfigManager(ctx: Context) {
     fun save(list: List<ButtonDef>) {
         val e = sp.edit()
         list.forEachIndexed { i, b ->
-            e.putString("btn_$i", "${b.label}|${b.nx}|${b.ny}|${b.r}|${b.alpha}|${b.id}")
+            e.putString("btn_$i", "${b.label}|${b.nx}|${b.ny}|${b.r}|${b.alpha}|${b.id}|${b.type}")
         }
         e.apply()
     }

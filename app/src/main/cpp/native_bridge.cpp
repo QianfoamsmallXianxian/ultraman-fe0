@@ -9,6 +9,7 @@ extern void ultraman_start_loop();
 extern void ultraman_stop_loop();
 extern void ultraman_set_surface(JNIEnv *, jobject);
 extern void ultraman_set_audio_enabled(bool);
+extern void ultraman_push_analog(int, int, int);
 extern void ultraman_push_key(int, int, bool);
 extern void ultraman_set_options(int, bool, bool);
 extern void ultraman_set_backend(int);
@@ -92,6 +93,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeStop(JNIEnv
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetSurface(JNIEnv *env, jclass, jobject s) { ultraman_set_surface(env, s); }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetAudioEnabled(JNIEnv *, jclass, jboolean on) { ultraman_set_audio_enabled(on == JNI_TRUE); }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeKey(JNIEnv *, jclass, jint p, jint id, jboolean d) { ultraman_push_key(p, id, d == JNI_TRUE); }
+
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeAnalog(JNIEnv *, jclass, jint x, jint y) { ultraman_push_analog(0, x, y); }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeReset(JNIEnv *, jclass) { retro_reset(); }
 extern "C" JNIEXPORT jstring JNICALL Java_com_pssp_EmulatorBridge_nativeVersion(JNIEnv *env, jclass) {
     return env->NewStringUTF("ppsspp");
