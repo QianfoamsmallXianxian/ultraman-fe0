@@ -82,7 +82,7 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            dbg("onSurfaceRecreated: resume only")
+            dbg("onSurfaceRecreated: loaded=" + loaded + " surfValid=" + view.isSurfaceValid)
             Log.i("UltramanFE0", "onSurfaceRecreated: resume only")
             if (loaded && view.isSurfaceValid) {
                 EmulatorBridge.nativeResume()
@@ -259,6 +259,7 @@ class PlayActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        dbg("onDestroy: isFinishing=" + isFinishing + " loaded=" + loaded)
         super.onDestroy()
         if (isFinishing && loaded) {
             EmulatorBridge.nativeStop()
@@ -291,6 +292,7 @@ class PlayActivity : AppCompatActivity() {
     }
 
     private fun doExit() {
+        dbg("doExit called")
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             EmulatorBridge.nativeStop()
