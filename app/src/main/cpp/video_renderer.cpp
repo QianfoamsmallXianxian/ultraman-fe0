@@ -1,3 +1,14 @@
+
+#include <cstdarg>
+static void nlog(const char* fmt, ...) {
+    FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/native_dbg.log", "a");
+    if (!f) return;
+    va_list ap; va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fprintf(f, "\n");
+    fclose(f);
+}
 #include <jni.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -476,7 +487,7 @@ void ultraman_video_present() {
 
     static int _present_dbg = 0;
     if (_present_dbg < 10) {
-        LOGI("present#%d: surf_ok=%d win=%p sfc=%p ctx=%p fbo=%u fbo_w=%d fbo_h=%d win_w=%d win_h=%d hw_ready=%d",
+        nlog("present#%d: surf_ok=%d win=%p sfc=%p ctx=%p fbo=%u fbo_w=%d fbo_h=%d win_w=%d win_h=%d hw_ready=%d",
              _present_dbg, g_surface_ok.load()?1:0, (void*)g_win, (void*)g_sfc, (void*)g_ctx,
              g_hw_fbo, g_fbo_w, g_fbo_h, g_win_w, g_win_h, g_hw_ready.load()?1:0);
         _present_dbg++;
@@ -802,7 +813,7 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
             nh = ANativeWindow_getHeight(g_win);
             g_win_w = nw;
             g_win_h = nh;
-            LOGI("surface %p %dx%d vulkan=%d", g_win, nw, nh, g_use_vulkan);
+            nlog("surface %p %dx%d vulkan=%d", g_win, nw, nh, g_use_vulkan);
             FrameProfiler::get().note_surface(nw, nh);
 
             if (g_use_vulkan == 1) {
@@ -815,13 +826,13 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
                 need_start = true;
             }
         } else {
-            LOGI("surface null: releasing EGL surface");
+            nlog("surface null: releasing EGL surface");
             if (g_dpy != EGL_NO_DISPLAY && g_sfc != EGL_NO_SURFACE) {
                 eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
                 eglDestroySurface(g_dpy, g_sfc);
                 g_sfc = EGL_NO_SURFACE;
                 g_current_sfc = EGL_NO_SURFACE;
-                LOGI("EGL surface released");
+                nlog("EGL surface released");
             }
             g_win_w = 0;
             g_win_h = 0;
@@ -830,7 +841,7 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
 
     if (need_recreate) {
         GLLOCK;
-        LOGI("recreate: start, g_dpy=%p g_cfg=%p g_win=%p g_ctx=%p", (void*)g_dpy, (void*)g_cfg, (void*)g_win, (void*)g_ctx);
+        nlog("recreate: start, g_dpy=%p g_cfg=%p g_win=%p g_ctx=%p", (void*)g_dpy, (void*)g_cfg, (void*)g_win, (void*)g_ctx);
         eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (g_sfc != EGL_NO_SURFACE) {
             eglDestroySurface(g_dpy, g_sfc);
@@ -838,15 +849,15 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         }
         g_sfc = eglCreateWindowSurface(g_dpy, g_cfg, g_win, nullptr);
         if (g_sfc == EGL_NO_SURFACE) {
-            LOGE("recreate: eglCreateWindowSurface FAIL 0x%x", eglGetError());
+            nlog("recreate: eglCreateWindowSurface FAIL 0x%x", eglGetError());
         } else if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
             g_current_sfc = g_sfc;
             g_surface_ok.store(true);
             g_win_w = nw;
             g_win_h = nh;
-            LOGI("recreate: OK %dx%d g_sfc=%p", nw, nh, (void*)g_sfc);
+            nlog("recreate: OK %dx%d g_sfc=%p", nw, nh, (void*)g_sfc);
         } else {
-            LOGE("recreate: eglMakeCurrent FAIL 0x%x", eglGetError());
+            nlog("recreate: eglMakeCurrent FAIL 0x%x", eglGetError());
         }
     }
 
