@@ -83,10 +83,15 @@ class PlayActivity : AppCompatActivity() {
 
         view.onSurfaceRecreated = {
             dbg("onSurfaceRecreated: loaded=" + loaded + " surfValid=" + view.isSurfaceValid)
-            Log.i("UltramanFE0", "onSurfaceRecreated: resume only")
-            if (loaded && view.isSurfaceValid) {
-                EmulatorBridge.nativeResume()
-                Log.i("UltramanFE0", "onSurfaceRecreated: nativeResume called")
+            if (loaded) {
+                window.decorView.postDelayed({
+                    if (loaded && view.isSurfaceValid) {
+                        dbg("onSurfaceRecreated delayed: calling nativeResume")
+                        EmulatorBridge.nativeResume()
+                    } else {
+                        dbg("onSurfaceRecreated delayed: surface gone, skip resume")
+                    }
+                }, 500)
             }
         }
 

@@ -458,10 +458,10 @@ void ultraman_video_present() {
     if (c <= 3) {
         LOGI("present call #%d vready=%d hwmode=%d hwready=%d fbo=%u surf=%d",
              c, g_video_ready.load()?1:0, g_hw_mode.load()?1:0,
-             g_hw_ready.load()?1:0, g_hw_fbo, g_surface_ok.load()?1:0);
+             g_hw_ready.load()?1:0, g_hw_fbo, g_win!=nullptr?1:0);
     }
     if (!g_video_ready.load() || !g_hw_mode.load()) return;
-    if (!g_surface_ok.load() || !g_win) return;
+    if (!g_win) return;
     if (g_dpy == EGL_NO_DISPLAY || g_sfc == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) return;
 
     GLLOCK;
@@ -491,10 +491,10 @@ void ultraman_video_present() {
     {
         static int _present_dbg = 0;
         static int _last_state = -1;
-        int st = (g_surface_ok.load()?1:0) | (g_hw_ready.load()?2:0) | (g_sfc!=EGL_NO_SURFACE?4:0) | (g_win!=nullptr?8:0);
+        int st = (g_win!=nullptr?1:0) | (g_hw_ready.load()?2:0) | (g_sfc!=EGL_NO_SURFACE?4:0) | (g_win!=nullptr?8:0);
         if (_present_dbg < 5 || st != _last_state) {
             nlog("present#%d: st=0x%x surf_ok=%d hw=%d sfc=%p win=%p fbo=%u",
-                 _present_dbg, st, g_surface_ok.load()?1:0, g_hw_ready.load()?1:0,
+                 _present_dbg, st, g_win!=nullptr?1:0, g_hw_ready.load()?1:0,
                  (void*)g_sfc, (void*)g_win, g_hw_fbo);
             _last_state = st;
             _present_dbg++;
@@ -765,8 +765,7 @@ void ultraman_video_start() {
 
 void ultraman_video_stop() {
     GLLOCK;
-    g_surface_ok.store(false);
-    g_video_ready.store(false);
+        g_video_ready.store(false);
     g_hw_ready.store(false);
 
     if (g_dpy != EGL_NO_DISPLAY) {
@@ -797,7 +796,7 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
         int64_t now_ns = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
-        if (g_last_nonnull_ns > 0 && (now_ns - g_last_nonnull_ns) < 100000000LL) {
+        if (g_last_nonnull_ns > 0 && (now_ns - g_last_nonnull_ns) < 500000000LL) {
             nlog("surface null: ignored (debounce, %lldms)",
                  (long long)((now_ns - g_last_nonnull_ns) / 1000000));
             return;
@@ -818,12 +817,10 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
 
         if (new_win == g_win && g_win != nullptr) {
             if (new_win) ANativeWindow_release(new_win);
-            if (!s) g_surface_ok.store(false);
-            return;
+            if (!s)             return;
         }
 
-        g_surface_ok.store(false);
-
+        
         if (g_win) {
             ANativeWindow_release(g_win);
             g_win = nullptr;
