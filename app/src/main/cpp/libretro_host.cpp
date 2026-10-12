@@ -133,6 +133,7 @@ extern void ultraman_audio_stop();
 extern struct retro_hw_render_callback* ultraman_get_hw_cb();
 
 static std::atomic<bool> s_run{false};
+static void do_pending_state();
 static std::atomic<bool> s_loaded{false};
 static std::thread s_thread;
 static std::string s_system_dir;
