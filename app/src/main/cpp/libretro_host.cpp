@@ -199,8 +199,22 @@ void ultraman_set_options(int r, bool v, bool a) {
 static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
-    if (it != s_vars.end()) return it->second.c_str();
-    return nullptr;
+    const char* ret = (it != s_vars.end()) ? it->second.c_str() : nullptr;
+    if (strncmp(key, "ppsspp_", 7) == 0) {
+        static char s_dumped[256][80] = {{0}};
+        static int  s_n = 0;
+        bool seen = false;
+        for (int i = 0; i < s_n; i++) {
+            if (s_dumped[i][0] && strcmp(s_dumped[i], key) == 0) { seen = true; break; }
+        }
+        if (!seen && s_n < 256) {
+            snprintf(s_dumped[s_n], 80, "%s", key);
+            s_n++;
+            FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/keys_dbg.txt", "a");
+            if (f) { fprintf(f, "%s -> %s\n", key, ret ? ret : "(null)"); fclose(f); }
+        }
+    }
+    return ret;
 }
 
 #include <cstdarg>
