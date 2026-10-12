@@ -105,6 +105,8 @@ static int g_win_w = 0;
 static int g_win_h = 0;
 static EGLSurface g_current_sfc = EGL_NO_SURFACE;
 
+static int64_t g_last_nonnull_ns = 0;
+
 static GLuint g_sw_tex   = 0;
 static GLuint g_sw_pbo[2]   = {0, 0};
 static int    g_sw_pbo_idx  = 0;
