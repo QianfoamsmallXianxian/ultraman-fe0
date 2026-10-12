@@ -57,17 +57,6 @@ class PlayActivity : AppCompatActivity() {
         root.addView(view, FrameLayout.LayoutParams(-1, -1))
         val overlay = OverlayView(this)
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
-        val menuBtn = Button(this)
-        menuBtn.text = "菜单"
-        menuBtn.alpha = 0.55f
-        menuBtn.textSize = 11f
-        menuBtn.setBackgroundColor(0xAA000000.toInt())
-        menuBtn.setTextColor(0xFFFFFFFF.toInt())
-        menuBtn.setOnClickListener { showMenu() }
-        val lp = FrameLayout.LayoutParams(130, 70)
-        lp.leftMargin = 20
-        lp.topMargin = 20
-        root.addView(menuBtn, lp)
         setContentView(root)
 
         hideSystemBars()
@@ -185,7 +174,7 @@ class PlayActivity : AppCompatActivity() {
                 when (w) {
                     0 -> saveState()
                     1 -> loadState()
-                    2 -> finish()
+                    2 -> doExit()
                 }
             }
             .setNegativeButton("取消", null)
@@ -239,10 +228,18 @@ class PlayActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (loaded) {
+            showMenu()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    private fun doExit() {
+        if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
             EmulatorBridge.nativeStop()
             loaded = false
         }
-        super.onBackPressed()
+        finish()
     }
 }
