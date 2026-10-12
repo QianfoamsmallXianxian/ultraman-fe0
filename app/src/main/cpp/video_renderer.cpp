@@ -1,4 +1,5 @@
 
+#include <cstdio>
 #include <cstdarg>
 static void nlog(const char* fmt, ...) {
     FILE* f = fopen("/storage/emulated/0/Android/data/com.pssp/files/native_dbg.log", "a");
