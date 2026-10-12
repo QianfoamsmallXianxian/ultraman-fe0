@@ -613,11 +613,9 @@ void ultraman_start_loop() {
 static std::thread s_render_thread;
 
 void ultraman_pause_render() {
-    LOGI("pause_render");
-    if (s_run.exchange(false)) {
-        if (s_thread.joinable()) s_thread.join();
-        LOGI("render paused (core still loaded)");
-    }
+    LOGI("pause_render: signaling stop");
+    s_run.exchange(false);
+    LOGI("pause_render: signaled (no join)");
 }
 
 void ultraman_resume_render() {
@@ -625,6 +623,11 @@ void ultraman_resume_render() {
     if (!s_loaded.load()) {
         LOGW("resume: core not loaded, skip");
         return;
+    }
+    if (s_thread.joinable()) {
+        LOGI("resume: joining old thread");
+        s_thread.join();
+        LOGI("resume: old thread joined");
     }
     if (s_run.exchange(true)) {
         LOGW("resume: already running");

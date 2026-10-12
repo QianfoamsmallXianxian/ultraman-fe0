@@ -14,6 +14,8 @@
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="16dp">
         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:text="渲染器" android:textColor="#E0E6ED" android:textSize="15sp"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="OpenGL" android:textColor="#4A8CFF" android:textSize="15sp" android:textStyle="bold"/>
     </LinearLayout>
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"

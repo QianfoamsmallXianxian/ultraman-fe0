@@ -42,12 +42,23 @@ class OverlayView @JvmOverloads constructor(
     private var lastTime = 0L
     private var fpsValue = 0f
 
+    @Volatile var isVisible = true
+
     private val fpsRunnable = object : Runnable {
         override fun run() {
-            val coreFps = EmulatorBridge.nativeGetCoreFps()
-            if (coreFps > 1.0 && coreFps < 1000.0) {
-                fpsValue = coreFps.toFloat()
+            if (!isVisible) {
+                fpsHandler.postDelayed(this, 500)
+                return
             }
+            val now = System.currentTimeMillis()
+            val count = EmulatorBridge.nativeGetFrameCount()
+            if (lastTime > 0 && now - lastTime > 200) {
+                val dt = now - lastTime
+                val raw = (count - lastFrameCount) * 1000f / dt
+                fpsValue = if (fpsValue <= 0f) raw else fpsValue * 0.6f + raw * 0.4f
+            }
+            lastFrameCount = count
+            lastTime = now
             if (cfg.showFps) invalidate()
             fpsHandler.postDelayed(this, 500)
         }

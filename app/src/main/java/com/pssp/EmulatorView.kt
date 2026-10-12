@@ -49,7 +49,7 @@ class EmulatorView @JvmOverloads constructor(
     }
 
     override fun surfaceCreated(h: SurfaceHolder) {
-        Log.i("UltramanFE0", "surfaceCreated size=${width}x${height}")
+        Log.i("UltramanFE0", "surfaceCreated ENTER size=${width}x${height} readyFired=$readyFired")
         isSurfaceValid = true
         EmulatorBridge.nativeSetSurface(h.surface)
         if (!readyFired) {
@@ -65,7 +65,7 @@ class EmulatorView @JvmOverloads constructor(
     }
 
     override fun surfaceDestroyed(h: SurfaceHolder) {
-        Log.i("UltramanFE0", "surfaceDestroyed")
+        Log.i("UltramanFE0", "surfaceDestroyed ENTER")
         isSurfaceValid = false
         EmulatorBridge.nativeSetSurface(null)
     }

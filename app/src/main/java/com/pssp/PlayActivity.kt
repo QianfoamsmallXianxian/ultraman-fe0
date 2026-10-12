@@ -82,12 +82,15 @@ class PlayActivity : AppCompatActivity() {
         EmulatorBridge.nativeSetAudioBuffer(cfg.audioBuffer)
 
         view.onSurfaceRecreated = {
-            Log.i("UltramanFE0", "surface recreated: reset ctx")
+            Log.i("UltramanFE0", "onSurfaceRecreated ENTER loaded=$loaded surfaceValid=${view.isSurfaceValid} pausedByUser=$pausedByUser")
             if (loaded) {
                 EmulatorBridge.nativeResetContext()
+                Log.i("UltramanFE0", "nativeResetContext done")
                 if (!pausedByUser && view.isSurfaceValid) {
-                    Log.i("UltramanFE0", "surface recreated: resume")
                     EmulatorBridge.nativeResume()
+                    Log.i("UltramanFE0", "nativeResume done")
+                } else {
+                    Log.i("UltramanFE0", "onSurfaceRecreated: skip resume (paused=${pausedByUser})")
                 }
             }
         }
@@ -212,23 +215,31 @@ class PlayActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        Log.i("UltramanFE0", "onPause ENTER loaded=$loaded")
         pausedByUser = true
         if (loaded) {
             EmulatorBridge.nativeSaveSram(sramFile().absolutePath)
+            Log.i("UltramanFE0", "onPause: SRAM saved")
             EmulatorBridge.nativePause()
+            Log.i("UltramanFE0", "onPause: nativePause returned")
         }
     }
 
     override fun onResume() {
         super.onResume()
+        Log.i("UltramanFE0", "onResume ENTER loaded=$loaded surfaceValid=${view.isSurfaceValid}")
         hideSystemBars()
         pausedByUser = false
         if (loaded && view.isSurfaceValid) {
             EmulatorBridge.nativeResume()
+            Log.i("UltramanFE0", "onResume: nativeResume called")
         } else if (loaded) {
+            Log.i("UltramanFE0", "onResume: waiting for surface")
             window.decorView.postDelayed({
+                Log.i("UltramanFE0", "onResume delayed: surfaceValid=${view.isSurfaceValid} loaded=$loaded")
                 if (!pausedByUser && view.isSurfaceValid && loaded) {
                     EmulatorBridge.nativeResume()
+                    Log.i("UltramanFE0", "onResume delayed: nativeResume called")
                 }
             }, 200)
         }
