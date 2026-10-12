@@ -486,12 +486,17 @@ void ultraman_video_present() {
         }
     }
 
-    static int _present_dbg = 0;
-    if (_present_dbg < 10) {
-        nlog("present#%d: surf_ok=%d win=%p sfc=%p ctx=%p fbo=%u fbo_w=%d fbo_h=%d win_w=%d win_h=%d hw_ready=%d",
-             _present_dbg, g_surface_ok.load()?1:0, (void*)g_win, (void*)g_sfc, (void*)g_ctx,
-             g_hw_fbo, g_fbo_w, g_fbo_h, g_win_w, g_win_h, g_hw_ready.load()?1:0);
-        _present_dbg++;
+    {
+        static int _present_dbg = 0;
+        static int _last_state = -1;
+        int st = (g_surface_ok.load()?1:0) | (g_hw_ready.load()?2:0) | (g_sfc!=EGL_NO_SURFACE?4:0) | (g_win!=nullptr?8:0);
+        if (_present_dbg < 5 || st != _last_state) {
+            nlog("present#%d: st=0x%x surf_ok=%d hw=%d sfc=%p win=%p fbo=%u",
+                 _present_dbg, st, g_surface_ok.load()?1:0, g_hw_ready.load()?1:0,
+                 (void*)g_sfc, (void*)g_win, g_hw_fbo);
+            _last_state = st;
+            _present_dbg++;
+        }
     }
     if (!g_hw_ready.load() || !g_hw_fbo) return;
     PSTEP(1);
@@ -784,6 +789,7 @@ void ultraman_video_stop() {
 }
 
 void ultraman_set_surface(JNIEnv* env, jobject s) {
+    nlog("set_surface(%s)", s ? "non-null" : "null");
     bool need_start = false;
     bool need_recreate = false;
     ANativeWindow* new_win = nullptr;
