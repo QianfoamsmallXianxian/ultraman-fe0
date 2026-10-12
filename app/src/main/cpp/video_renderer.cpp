@@ -566,6 +566,21 @@ void ultraman_video_cb(const void* data, unsigned w, unsigned h, size_t pitch) {
         s_tex_alloc = true;
     } else {
         size_t need = (size_t)w * h * 4;
+        if (g_sw_pbo_ok && need > g_sw_pbo_size) {
+            for (int i = 0; i < 2; i++) {
+                if (g_sw_pbo[i]) glDeleteBuffers(1, &g_sw_pbo[i]);
+                g_sw_pbo[i] = 0;
+            }
+            g_sw_pbo_size = need;
+            glGenBuffers(2, g_sw_pbo);
+            for (int i = 0; i < 2; i++) {
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo[i]);
+                glBufferData(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo_size, nullptr, GL_STREAM_DRAW);
+            }
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            GLenum e2 = glGetError();
+            g_sw_pbo_ok = (e2 == GL_NO_ERROR && g_sw_pbo[0] && g_sw_pbo[1]);
+        }
         if (g_sw_pbo_ok && g_sw_pbo[0] && g_sw_pbo[1]
             && s_pfn_glMapBufferRange && s_pfn_glUnmapBuffer
             && need <= g_sw_pbo_size) {
@@ -678,7 +693,7 @@ void ultraman_video_start() {
 
     {
         glGenBuffers(2, g_sw_pbo);
-        g_sw_pbo_size = 1920 * 1088 * 4;
+        g_sw_pbo_size = 2560 * 1440 * 4;
         for (int i = 0; i < 2; i++) {
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo[i]);
             glBufferData(GL_PIXEL_UNPACK_BUFFER, g_sw_pbo_size, nullptr, GL_STREAM_DRAW);
