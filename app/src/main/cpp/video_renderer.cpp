@@ -474,6 +474,13 @@ void ultraman_video_present() {
         }
     }
 
+    static int _present_dbg = 0;
+    if (_present_dbg < 10) {
+        LOGI("present#%d: surf_ok=%d win=%p sfc=%p ctx=%p fbo=%u fbo_w=%d fbo_h=%d win_w=%d win_h=%d hw_ready=%d",
+             _present_dbg, g_surface_ok.load()?1:0, (void*)g_win, (void*)g_sfc, (void*)g_ctx,
+             g_hw_fbo, g_fbo_w, g_fbo_h, g_win_w, g_win_h, g_hw_ready.load()?1:0);
+        _present_dbg++;
+    }
     if (!g_hw_ready.load() || !g_hw_fbo) return;
     PSTEP(1);
     if (!ensure_current()) return;
@@ -816,23 +823,30 @@ void ultraman_set_surface(JNIEnv* env, jobject s) {
                 g_current_sfc = EGL_NO_SURFACE;
                 LOGI("EGL surface released");
             }
+            g_win_w = 0;
+            g_win_h = 0;
         }
     }
 
     if (need_recreate) {
         GLLOCK;
+        LOGI("recreate: start, g_dpy=%p g_cfg=%p g_win=%p g_ctx=%p", (void*)g_dpy, (void*)g_cfg, (void*)g_win, (void*)g_ctx);
         eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (g_sfc != EGL_NO_SURFACE) {
             eglDestroySurface(g_dpy, g_sfc);
             g_sfc = EGL_NO_SURFACE;
         }
         g_sfc = eglCreateWindowSurface(g_dpy, g_cfg, g_win, nullptr);
-        if (g_sfc != EGL_NO_SURFACE) {
-            if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
-                g_current_sfc = g_sfc;
-                g_surface_ok.store(true);
-                LOGI("EGL surface recreated");
-            }
+        if (g_sfc == EGL_NO_SURFACE) {
+            LOGE("recreate: eglCreateWindowSurface FAIL 0x%x", eglGetError());
+        } else if (eglMakeCurrent(g_dpy, g_sfc, g_sfc, g_ctx)) {
+            g_current_sfc = g_sfc;
+            g_surface_ok.store(true);
+            g_win_w = nw;
+            g_win_h = nh;
+            LOGI("recreate: OK %dx%d g_sfc=%p", nw, nh, (void*)g_sfc);
+        } else {
+            LOGE("recreate: eglMakeCurrent FAIL 0x%x", eglGetError());
         }
     }
 
