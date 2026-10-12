@@ -31,7 +31,7 @@ class SettingsActivity : AppCompatActivity() {
         spBackend.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("OpenGL (推荐)", "Vulkan (实验)")
+            arrayOf("OpenGL")
         )
         spBackend.setSelection(cfg.backend.coerceIn(0, 1))
         spBackend.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {

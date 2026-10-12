@@ -161,7 +161,6 @@ static const char *resolution_for(int m) {
 
 void ultraman_set_backend(int b) {
     s_backend = b;
-    { FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/hw_dbg.txt","a"); if(f){ fprintf(f,"set_backend b=%d\n", b); fclose(f);} }
     g_use_vulkan = (b == 1) ? 1 : 0;
     if (b == 0) s_vars["ppsspp_backend"] = "OpenGL";
     else if (b == 1) s_vars["ppsspp_backend"] = "Vulkan";
@@ -195,20 +194,6 @@ static const char *lookup_var(const char *key) {
     if (!key) return nullptr;
     auto it = s_vars.find(key);
     const char* ret = (it != s_vars.end()) ? it->second.c_str() : nullptr;
-    if (strncmp(key, "ppsspp_", 7) == 0) {
-        static char s_dumped[256][80] = {{0}};
-        static int  s_n = 0;
-        bool seen = false;
-        for (int i = 0; i < s_n; i++) {
-            if (s_dumped[i][0] && strcmp(s_dumped[i], key) == 0) { seen = true; break; }
-        }
-        if (!seen && s_n < 256) {
-            snprintf(s_dumped[s_n], 80, "%s", key);
-            s_n++;
-            FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/keys_dbg.txt", "a");
-            if (f) { fprintf(f, "%s -> %s\n", key, ret ? ret : "(null)"); fclose(f); }
-        }
-    }
     return ret;
 }
 
@@ -312,7 +297,6 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_SET_HW_RENDER: {
             struct retro_hw_render_callback *cb = (struct retro_hw_render_callback *)data;
             if (!cb) { LOGE("SET_HW_RENDER: null cb"); return false; }
-            { FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/hw_dbg.txt","a"); if(f){ fprintf(f,"SET_HW_RENDER type=%d ver=%u s_backend=%d\n", cb->context_type, cb->version, s_backend); fclose(f);} }
             LOGI("SET_HW_RENDER req type=%d depth=%d stencil=%d ver=%u",
                  cb->context_type, cb->depth ? 1 : 0, cb->stencil ? 1 : 0, cb->version);
 
@@ -359,7 +343,6 @@ static bool env_cb(unsigned cmd, void *data) {
         }
         case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE: {
             LOGI("GET_HW_RENDER_INTERFACE called, backend=%d", s_backend);
-            { FILE* f = fopen("/storage/emulated/0/Android/data/com.ultraman.fe0/files/logs/hw_dbg.txt","a"); if(f){ fprintf(f,"GET_HW_RENDER_IFACE s_backend=%d\n", s_backend); fclose(f);} }
             if (s_backend != 1) {
                 LOGW("not Vulkan backend, refusing interface");
                 return false;
