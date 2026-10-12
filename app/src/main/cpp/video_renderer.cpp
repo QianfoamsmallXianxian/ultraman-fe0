@@ -186,14 +186,6 @@ static void sw_setup() {
     LOGI("sw setup done");
 }
 
-static void clear_gl_errors() {
-    GLenum e;
-    int c = 0;
-    while ((e = glGetError()) != GL_NO_ERROR && c < 16) {
-        LOGW("clear_gl_error 0x%x", e);
-        c++;
-    }
-}
 
 static bool ensure_current() {
     GLLOCK;
@@ -501,13 +493,6 @@ void ultraman_video_present() {
             stable_locked = true;
         }
     }
-
-    int vpW = winW;
-    int vpH = winH;
-    int vpX = 0;
-    int vpY = 0;
-
-
 
     PSTEP(3);
     PROF_MARK_BEGIN(STAGE_BLIT_OR_DRAW);
