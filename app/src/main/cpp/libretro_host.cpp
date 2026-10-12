@@ -632,9 +632,9 @@ void ultraman_pause_render() {
     LOGI("pause_render: signaling stop");
     s_run.exchange(false);
     if (s_thread.joinable()) {
-        LOGI("pause_render: joining");
-        s_thread.join();
-        LOGI("pause_render: joined");
+        LOGI("pause_render: detaching (non-blocking)");
+        s_thread.detach();
+        LOGI("pause_render: detached");
     }
     dbg("pause DONE");
 }
@@ -688,7 +688,8 @@ void ultraman_resume_render() {
             int64_t _tv1 = perf_now_ns();
             int64_t _t2 = perf_now_ns();
             int64_t _t3 = perf_now_ns();
-            perf_frame((_t3 - _t0), (_t1 - _t0), (_tv1 - _tv0), (_t3 - _t2), (int)(s_frames.load()));
+            int f = s_frames.fetch_add(1) + 1;
+            perf_frame((_t3 - _t0), (_t1 - _t0), (_tv1 - _tv0), (_t3 - _t2), f);
             next += frame_dur;
             auto now = std::chrono::steady_clock::now();
             if (next < now) next = now + frame_dur;
