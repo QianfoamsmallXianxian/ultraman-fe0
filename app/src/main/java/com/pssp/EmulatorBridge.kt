@@ -24,6 +24,7 @@ object EmulatorBridge {
     external fun nativeSetOptions(resolution: Int, vsync: Boolean, audio: Boolean)
     external fun nativeSetAudioBuffer(level: Int)
     external fun nativeGetFrameCount(): Long
+    external fun nativeGetCoreFps(): Double
     external fun nativeLoadGame(path: String): Boolean
     external fun nativeStart()
     external fun nativeStop()

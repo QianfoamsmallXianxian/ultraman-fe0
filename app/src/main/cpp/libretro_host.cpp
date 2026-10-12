@@ -135,6 +135,7 @@ extern struct retro_hw_render_callback* ultraman_get_hw_cb();
 static std::atomic<bool> s_run{false};
 static void do_pending_state();
 static std::atomic<bool> s_loaded{false};
+static double s_core_fps = 60.0;
 static std::thread s_thread;
 static std::string s_system_dir;
 static std::atomic<int> s_frames{0};
@@ -277,6 +278,7 @@ static bool env_cb(unsigned cmd, void *data) {
                 LOGW("av_info invalid %ux%u fps=%.2f -> ignore", w, h, fps);
             } else {
                 LOGI("av_info valid %ux%u fps=%.2f", w, h, fps);
+                if (fps > 1.0 && fps < 1000.0) s_core_fps = fps;
             }
             return true;
         }
@@ -489,6 +491,7 @@ bool ultraman_load_game(const std::string &path) {
     LOGI("av %ux%u @%.2f/%.0f",
          av.geometry.base_width, av.geometry.base_height,
          av.timing.fps, av.timing.sample_rate);
+    if (av.timing.fps > 1.0 && av.timing.fps < 1000.0) s_core_fps = av.timing.fps;
 
     ultraman_video_set_geometry(av.geometry.base_width, av.geometry.base_height, av.timing.fps);
     ultraman_video_set_hw(true, s_render_w, s_render_h);
@@ -665,6 +668,8 @@ void ultraman_resume_render() {
         LOGI("resume thread ended");
     });
 }
+
+double ultraman_get_core_fps() { return s_core_fps; }
 
 void ultraman_stop_loop() {
     if (!s_run.exchange(false)) return;
