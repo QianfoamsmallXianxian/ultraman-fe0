@@ -17,6 +17,8 @@ class ButtonEditorActivity : AppCompatActivity() {
     private lateinit var sbSize: SeekBar
     private lateinit var sbAlpha: SeekBar
     private lateinit var tvAlpha: TextView
+    private lateinit var sbDistance: SeekBar
+    private lateinit var tvDist: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,14 +30,16 @@ class ButtonEditorActivity : AppCompatActivity() {
         sbSize = findViewById(R.id.sbSize)
         sbAlpha = findViewById(R.id.sbAlpha)
         tvAlpha = findViewById(R.id.tvAlpha)
+        sbDistance = findViewById(R.id.sbDistance)
+        tvDist = findViewById(R.id.tvDist)
 
         editor.onSelectionChanged = { idx ->
             if (idx >= 0) {
-                sbSize.isEnabled = true; sbAlpha.isEnabled = true
+                sbSize.isEnabled = true; sbAlpha.isEnabled = true; sbDistance.isEnabled = true
                 sbSize.progress = ((editor.getSelectedSize() - 0.03f) / 0.09f * 100).toInt().coerceIn(0, 100)
                 sbAlpha.progress = (editor.getSelectedAlpha() * 100).toInt().coerceIn(0, 100)
                 tvAlpha.text = "${sbAlpha.progress}%"
-            } else { sbSize.isEnabled = false; sbAlpha.isEnabled = false }
+            } else { sbSize.isEnabled = false; sbAlpha.isEnabled = false; sbDistance.isEnabled = false }
         }
 
         sbSize.max = 100
@@ -48,6 +52,17 @@ class ButtonEditorActivity : AppCompatActivity() {
         sbAlpha.max = 100
         sbAlpha.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar, p: Int, u: Boolean) { editor.setSelectedAlpha(p / 100f); tvAlpha.text = "$p%" }
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onStopTrackingTouch(s: SeekBar) {}
+        })
+
+        sbDistance.max = 170
+        sbDistance.progress = 100
+        sbDistance.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar, p: Int, u: Boolean) {
+                tvDist.text = "$p%"
+                editor.setSelectedDistance(p / 100f)
+            }
             override fun onStartTrackingTouch(s: SeekBar) {}
             override fun onStopTrackingTouch(s: SeekBar) {}
         })

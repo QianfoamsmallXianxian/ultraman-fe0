@@ -32,8 +32,8 @@ class ButtonConfigManager(ctx: Context) {
             ButtonDef("STA", 0.56f,  0.92f,  0.045f, 0.5f, EmulatorBridge.BTN_START),
             ButtonDef("△",   0.86f,  0.572f, 0.055f, 0.5f, EmulatorBridge.BTN_X),
             ButtonDef("○",   0.927f, 0.72f,  0.055f, 0.5f, EmulatorBridge.BTN_A),
-            ButtonDef("✕",   0.793f, 0.72f,  0.055f, 0.5f, EmulatorBridge.BTN_B),
-            ButtonDef("□",   0.86f,  0.868f, 0.055f, 0.5f, EmulatorBridge.BTN_Y),
+            ButtonDef("□",   0.793f, 0.72f,  0.055f, 0.5f, EmulatorBridge.BTN_Y),
+            ButtonDef("✕",   0.86f,  0.868f, 0.055f, 0.5f, EmulatorBridge.BTN_B),
             ButtonDef("L3",  0.30f,  0.72f,  0.095f, 0.5f, JOY_LEFT,  TYPE_ANALOG)
         )
     }

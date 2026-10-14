@@ -90,7 +90,7 @@ class OverlayView @JvmOverloads constructor(
             if (b.type != 0) continue
             val dx = x - px(b)
             val dy = y - py(b)
-            val r = pr(b) * 2.5f
+            val r = pr(b) * 1.2f
             if (dx * dx + dy * dy < r * r) res.add(b.id)
         }
         return res

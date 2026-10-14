@@ -18,6 +18,16 @@
             android:layout_height="wrap_content" android:layout_marginTop="2dp"/>
         <SeekBar android:id="@+id/sbAlpha" android:layout_width="220dp"
             android:layout_height="wrap_content" android:layout_marginTop="2dp"/>
+        <LinearLayout android:layout_width="220dp" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical"
+            android:layout_marginTop="6dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="距离" android:textColor="#E0E6ED" android:textSize="12sp"/>
+            <TextView android:id="@+id/tvDist" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="100%" android:textColor="#4A8CFF" android:textSize="12sp"/>
+        </LinearLayout>
+        <SeekBar android:id="@+id/sbDistance" android:layout_width="220dp"
+            android:layout_height="wrap_content" android:layout_marginTop="2dp" android:max="170"/>
     </LinearLayout>
     <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:layout_gravity="top|end" android:layout_margin="12dp" android:orientation="horizontal">

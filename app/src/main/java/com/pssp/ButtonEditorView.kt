@@ -24,6 +24,11 @@ class ButtonEditorView @JvmOverloads constructor(
 
     private var selectedGroup = -1
     private var selectedKey = -1
+    private val snapNx = FloatArray(16)
+    private val snapNy = FloatArray(16)
+    private var snapCenterX = 0f
+    private var snapCenterY = 0f
+    private var snapTaken = false
     private var dragX = 0f
     private var dragY = 0f
     var onSelectionChanged: ((Int) -> Unit)? = null
@@ -41,6 +46,30 @@ class ButtonEditorView @JvmOverloads constructor(
         val cx = list.map { buttons[it].nx }.average().toFloat()
         val cy = list.map { buttons[it].ny }.average().toFloat()
         return cx to cy
+    }
+
+    private fun takeSnapshot() {
+        if (selectedGroup < 0) { snapTaken = false; return }
+        val c = groupCenter(selectedGroup)
+        snapCenterX = c.first
+        snapCenterY = c.second
+        for (i in groups[selectedGroup]) {
+            snapNx[i] = buttons[i].nx
+            snapNy[i] = buttons[i].ny
+        }
+        snapTaken = true
+    }
+
+    fun getSelectedDistance(): Float = 1.0f
+
+    fun setSelectedDistance(scale: Float) {
+        if (selectedGroup < 0 || !snapTaken) return
+        val v = scale.coerceIn(0.3f, 2.0f)
+        for (i in groups[selectedGroup]) {
+            buttons[i].nx = (snapCenterX + (snapNx[i] - snapCenterX) * v).coerceIn(0.03f, 0.97f)
+            buttons[i].ny = (snapCenterY + (snapNy[i] - snapCenterY) * v).coerceIn(0.03f, 0.97f)
+        }
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -109,6 +138,7 @@ class ButtonEditorView @JvmOverloads constructor(
                     selectedGroup = -1
                     selectedKey = -1
                 }
+                takeSnapshot()
                 onSelectionChanged?.invoke(if (selectedKey >= 0) selectedKey else selectedGroup)
                 invalidate()
                 return true
