@@ -23,6 +23,7 @@ class ButtonEditorView @JvmOverloads constructor(
     )
 
     private var selectedGroup = -1
+    private var selectedKey = -1
     private var dragX = 0f
     private var dragY = 0f
     var onSelectionChanged: ((Int) -> Unit)? = null
@@ -52,7 +53,7 @@ class ButtonEditorView @JvmOverloads constructor(
             val cy = b.ny * sh
             val r = min(sw, sh) * b.r
             val a = b.alpha.coerceIn(0f, 1f)
-            val isSel = selectedGroup >= 0 && groups[selectedGroup].contains(i)
+            val isSel = if (selectedKey >= 0) i == selectedKey else (selectedGroup >= 0 && groups[selectedGroup].contains(i))
 
             paint.style = Paint.Style.FILL
             paint.color = if (isSel)
@@ -92,12 +93,23 @@ class ButtonEditorView @JvmOverloads constructor(
                     val r = min(sw, sh) * b.r
                     if (dx * dx + dy * dy < r * r) { hitBtn = i; break }
                 }
-                selectedGroup = if (hitBtn >= 0) groupOf(hitBtn) else -1
-                if (selectedGroup >= 0) {
+                if (hitBtn >= 0) {
+                    val g = groupOf(hitBtn)
+                    if (g == selectedGroup && selectedKey != hitBtn) {
+                        selectedKey = hitBtn
+                    } else if (selectedKey == hitBtn) {
+                        selectedKey = -1
+                    } else {
+                        selectedGroup = g
+                        selectedKey = -1
+                    }
                     dragX = x
                     dragY = y
+                } else {
+                    selectedGroup = -1
+                    selectedKey = -1
                 }
-                onSelectionChanged?.invoke(selectedGroup)
+                onSelectionChanged?.invoke(if (selectedKey >= 0) selectedKey else selectedGroup)
                 invalidate()
                 return true
             }
@@ -140,6 +152,11 @@ class ButtonEditorView @JvmOverloads constructor(
     }
 
     fun setSelectedSize(r: Float) {
+        if (selectedKey >= 0) {
+            buttons[selectedKey].r = r.coerceIn(0.03f, 0.15f)
+            invalidate()
+            return
+        }
         if (selectedGroup < 0) return
         val center = groupCenter(selectedGroup)
         val cx = center.first
@@ -157,18 +174,23 @@ class ButtonEditorView @JvmOverloads constructor(
     }
 
     fun getSelectedSize(): Float {
+        if (selectedKey >= 0) return buttons[selectedKey].r
         if (selectedGroup < 0) return 0.055f
         return groups[selectedGroup].map { buttons[it].r }.average().toFloat()
     }
 
     fun setSelectedAlpha(a: Float) {
-        if (selectedGroup < 0) return
         val v = a.coerceIn(0f, 1f)
-        for (i in groups[selectedGroup]) buttons[i].alpha = v
+        if (selectedKey >= 0) {
+            buttons[selectedKey].alpha = v
+        } else if (selectedGroup >= 0) {
+            for (i in groups[selectedGroup]) buttons[i].alpha = v
+        }
         invalidate()
     }
 
     fun getSelectedAlpha(): Float {
+        if (selectedKey >= 0) return buttons[selectedKey].alpha
         if (selectedGroup < 0) return 0.5f
         return groups[selectedGroup].map { buttons[it].alpha }.average().toFloat()
     }
