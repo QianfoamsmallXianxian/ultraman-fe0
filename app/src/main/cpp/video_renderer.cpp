@@ -543,7 +543,7 @@ void ultraman_video_present() {
     GL_BLIT_FB(
         0, 0, g_fbo_w, g_fbo_h,
         0, 0, winW, winH,
-        GL_COLOR_BUFFER_BIT, GL_NEAREST
+        GL_COLOR_BUFFER_BIT, GL_LINEAR
     );
     PSTEP(5);
     PROF_MARK_END(STAGE_BLIT_OR_DRAW);

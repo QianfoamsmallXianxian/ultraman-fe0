@@ -195,7 +195,7 @@ void ultraman_set_options(int r, bool v, bool a) {
     s_vars["ppsspp_auto_frameskip"] = "disabled";
     s_vars["ppsspp_inflight_frames"] = "3";
     s_vars["ppsspp_texture_anisotropic_filtering"] = "4";
-    s_vars["ppsspp_mulitsample_level"] = "1";
+    s_vars["ppsspp_mulitsample_level"] = "2";
     s_vars["ppsspp_texture_scaling_type"] = "Auto";
     s_vars["ppsspp_texture_scaling_level"] = "1";
     s_vars["ppsspp_spline_quality"] = "1";
