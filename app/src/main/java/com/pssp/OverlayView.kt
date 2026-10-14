@@ -52,11 +52,6 @@ class OverlayView @JvmOverloads constructor(
             }
             val now = System.currentTimeMillis()
             val count = EmulatorBridge.nativeGetFrameCount()
-            try {
-                val f = java.io.File("/storage/emulated/0/Android/data/com.pssp/files/fps.log")
-                f.parentFile?.mkdirs()
-                f.appendText("[" + System.currentTimeMillis() + "] count=" + count + " last=" + lastFrameCount + " fps=" + fpsValue + "\n")
-            } catch (_: Throwable) {}
             if (lastTime > 0 && now - lastTime > 200) {
                 val dt = now - lastTime
                 val raw = (count - lastFrameCount) * 1000f / dt
@@ -89,6 +84,18 @@ class OverlayView @JvmOverloads constructor(
     private fun py(b: ButtonDef): Float = b.ny * height
     private fun pr(b: ButtonDef): Float = min(width, height) * b.r
 
+    private fun hitAll(x: Float, y: Float): List<Int> {
+        val res = mutableListOf<Int>()
+        for (b in buttons) {
+            if (b.type != 0) continue
+            val dx = x - px(b)
+            val dy = y - py(b)
+            val r = pr(b) * 2.5f
+            if (dx * dx + dy * dy < r * r) res.add(b.id)
+        }
+        return res
+    }
+
     private fun hitJoystick(x: Float, y: Float): ButtonDef? {
         for (b in buttons) {
             if (b.type != 1) continue
@@ -119,17 +126,6 @@ class OverlayView @JvmOverloads constructor(
         val ax = ((nx / joyMaxR) * 32767f).toInt().coerceIn(-32768, 32767)
         val ay = ((ny / joyMaxR) * 32767f).toInt().coerceIn(-32768, 32767)
         EmulatorBridge.nativeAnalog(ax, ay)
-    }
-
-    private fun hitAll(x: Float, y: Float): List<Int> {
-        val res = mutableListOf<Int>()
-        for (b in buttons) {
-            val dx = x - px(b)
-            val dy = y - py(b)
-            val r = pr(b) * 2.5f
-            if (dx * dx + dy * dy < r * r) res.add(b.id)
-        }
-        return res
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -198,7 +194,6 @@ class OverlayView @JvmOverloads constructor(
         }
         return true
     }
-
 
     private fun isPressed(id: Int): Boolean {
         for (list in held.values) if (id in list) return true

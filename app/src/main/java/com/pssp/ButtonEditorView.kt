@@ -19,8 +19,7 @@ class ButtonEditorView @JvmOverloads constructor(
         listOf(2, 3, 4, 5),
         listOf(6, 7),
         listOf(8, 9, 10, 11),
-        listOf(12),
-        listOf(13)
+        listOf(12)
     )
 
     private var selectedGroup = -1

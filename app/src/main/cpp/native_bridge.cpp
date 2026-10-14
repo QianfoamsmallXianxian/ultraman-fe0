@@ -100,9 +100,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetSurface(
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeSetAudioEnabled(JNIEnv *, jclass, jboolean on) { ultraman_set_audio_enabled(on == JNI_TRUE); }
 extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeKey(JNIEnv *, jclass, jint p, jint id, jboolean d) { ultraman_push_key(p, id, d == JNI_TRUE); }
 
-extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeAnalog(JNIEnv *, jclass, jint x, jint y) { ultraman_push_analog(0, 0, x, y); }
-extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeAnalogRight(JNIEnv *, jclass, jint x, jint y) { ultraman_push_analog(0, 1, x, y); }
-extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeReset(JNIEnv *, jclass) { retro_reset(); }
+extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeAnalog(JNIEnv *, jclass, jint x, jint y) { ultraman_push_analog(0, 0, x, y); }extern "C" JNIEXPORT void JNICALL Java_com_pssp_EmulatorBridge_nativeReset(JNIEnv *, jclass) { retro_reset(); }
 extern "C" JNIEXPORT jstring JNICALL Java_com_pssp_EmulatorBridge_nativeVersion(JNIEnv *env, jclass) {
     return env->NewStringUTF("ppsspp");
 }

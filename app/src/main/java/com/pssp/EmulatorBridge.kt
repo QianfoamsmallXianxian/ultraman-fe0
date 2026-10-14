@@ -35,7 +35,6 @@ object EmulatorBridge {
     external fun nativeSetAudioEnabled(enabled: Boolean)
     external fun nativeKey(port: Int, id: Int, down: Boolean)
     external fun nativeAnalog(x: Int, y: Int)
-    external fun nativeAnalogRight(x: Int, y: Int)
     external fun nativeReset()
     external fun nativeVersion(): String
     external fun nativeSaveState(path: String): Boolean
