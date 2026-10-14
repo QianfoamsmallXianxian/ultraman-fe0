@@ -50,7 +50,17 @@ jobs:
       - name: GrantGradlew
         run: |
           [ -f gradlew ] && chmod +x gradlew || true
+      - name: RestoreKeystore
+        run: |
+          mkdir -p app/keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore/pssp.keystore
+          ls -lh app/keystore/pssp.keystore
+
       - name: BuildAPK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: LocateAPK
         id: apk
