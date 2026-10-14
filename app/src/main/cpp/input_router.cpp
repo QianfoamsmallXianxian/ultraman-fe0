@@ -20,6 +20,8 @@
 static std::atomic<int16_t> s_st[4][16];
 static std::atomic<int16_t> s_ax[4];
 static std::atomic<int16_t> s_ay[4];
+static std::atomic<int16_t> s_rx[4];
+static std::atomic<int16_t> s_ry[4];
 
 void ultraman_poll_input_cb() {}
 
@@ -30,9 +32,14 @@ int16_t ultraman_input_state_cb(unsigned p, unsigned d, unsigned i, unsigned id)
         return s_st[p][id].load();
     }
     if (d == RETRO_DEVICE_ANALOG) {
-        if (i != RETRO_DEVICE_INDEX_ANALOG_LEFT) return 0;
-        if (id == RETRO_DEVICE_ID_ANALOG_X) return s_ax[p].load();
-        if (id == RETRO_DEVICE_ID_ANALOG_Y) return s_ay[p].load();
+        if (i == RETRO_DEVICE_INDEX_ANALOG_LEFT) {
+            if (id == RETRO_DEVICE_ID_ANALOG_X) return s_ax[p].load();
+            if (id == RETRO_DEVICE_ID_ANALOG_Y) return s_ay[p].load();
+        }
+        if (i == RETRO_DEVICE_INDEX_ANALOG_RIGHT) {
+            if (id == RETRO_DEVICE_ID_ANALOG_X) return s_rx[p].load();
+            if (id == RETRO_DEVICE_ID_ANALOG_Y) return s_ry[p].load();
+        }
     }
     return 0;
 }
@@ -42,8 +49,13 @@ void ultraman_push_key(int p, int id, bool down) {
     s_st[p][id].store(down ? 1 : 0);
 }
 
-void ultraman_push_analog(int p, int x, int y) {
+void ultraman_push_analog(int p, int stick, int x, int y) {
     if (p < 0 || p >= 4) return;
-    s_ax[p].store((int16_t)x);
-    s_ay[p].store((int16_t)y);
+    if (stick == 0) {
+        s_ax[p].store((int16_t)x);
+        s_ay[p].store((int16_t)y);
+    } else {
+        s_rx[p].store((int16_t)x);
+        s_ry[p].store((int16_t)y);
+    }
 }

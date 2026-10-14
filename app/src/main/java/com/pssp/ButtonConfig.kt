@@ -18,21 +18,24 @@ class ButtonConfigManager(ctx: Context) {
     companion object {
         const val TYPE_KEY = 0
         const val TYPE_ANALOG = 1
+        const val JOY_LEFT = -1
+        const val JOY_RIGHT = -2
 
         val DEFAULT = listOf(
-            ButtonDef("L", 0.08f, 0.10f, 0.055f, 0.5f, EmulatorBridge.BTN_L),
-            ButtonDef("R", 0.92f, 0.10f, 0.055f, 0.5f, EmulatorBridge.BTN_R),
-            ButtonDef("^", 0.12f, 0.62f, 0.055f, 0.5f, EmulatorBridge.BTN_UP),
-            ButtonDef("v", 0.12f, 0.86f, 0.055f, 0.5f, EmulatorBridge.BTN_DOWN),
-            ButtonDef("<", 0.05f, 0.74f, 0.055f, 0.5f, EmulatorBridge.BTN_LEFT),
-            ButtonDef(">", 0.19f, 0.74f, 0.055f, 0.5f, EmulatorBridge.BTN_RIGHT),
-            ButtonDef("SEL", 0.42f, 0.90f, 0.045f, 0.5f, EmulatorBridge.BTN_SELECT),
-            ButtonDef("STA", 0.58f, 0.90f, 0.045f, 0.5f, EmulatorBridge.BTN_START),
-            ButtonDef("T", 0.82f, 0.56f, 0.055f, 0.5f, EmulatorBridge.BTN_Y),
-            ButtonDef("X", 0.74f, 0.72f, 0.055f, 0.5f, EmulatorBridge.BTN_X),
-            ButtonDef("O", 0.90f, 0.72f, 0.055f, 0.5f, EmulatorBridge.BTN_B),
-            ButtonDef("S", 0.82f, 0.88f, 0.055f, 0.5f, EmulatorBridge.BTN_A),
-            ButtonDef("◎", 0.33f, 0.72f, 0.11f, 0.5f, -1, TYPE_ANALOG)
+            ButtonDef("L",   0.08f,  0.10f,  0.055f, 0.5f, EmulatorBridge.BTN_L),
+            ButtonDef("R",   0.92f,  0.10f,  0.055f, 0.5f, EmulatorBridge.BTN_R),
+            ButtonDef("^",   0.115f, 0.592f, 0.055f, 0.5f, EmulatorBridge.BTN_UP),
+            ButtonDef("v",   0.115f, 0.888f, 0.055f, 0.5f, EmulatorBridge.BTN_DOWN),
+            ButtonDef("<",   0.048f, 0.74f,  0.055f, 0.5f, EmulatorBridge.BTN_LEFT),
+            ButtonDef(">",   0.182f, 0.74f,  0.055f, 0.5f, EmulatorBridge.BTN_RIGHT),
+            ButtonDef("SEL", 0.44f,  0.92f,  0.045f, 0.5f, EmulatorBridge.BTN_SELECT),
+            ButtonDef("STA", 0.56f,  0.92f,  0.045f, 0.5f, EmulatorBridge.BTN_START),
+            ButtonDef("△",   0.86f,  0.572f, 0.055f, 0.5f, EmulatorBridge.BTN_Y),
+            ButtonDef("○",   0.927f, 0.72f,  0.055f, 0.5f, EmulatorBridge.BTN_B),
+            ButtonDef("✕",   0.793f, 0.72f,  0.055f, 0.5f, EmulatorBridge.BTN_X),
+            ButtonDef("□",   0.86f,  0.868f, 0.055f, 0.5f, EmulatorBridge.BTN_A),
+            ButtonDef("L3",  0.30f,  0.72f,  0.095f, 0.5f, JOY_LEFT,  TYPE_ANALOG),
+            ButtonDef("R3",  0.68f,  0.74f,  0.095f, 0.5f, JOY_RIGHT, TYPE_ANALOG)
         )
     }
 
