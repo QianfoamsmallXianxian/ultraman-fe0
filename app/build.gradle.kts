@@ -6,6 +6,14 @@ android {
     namespace = "com.pssp"
     compileSdk = 34
     ndkVersion = "25.2.9519653"
+    signingConfigs {
+        create("fixed") {
+            storeFile = file("keystore/pssp.keystore")
+            storePassword = "pssp123456"
+            keyAlias = "pssp"
+            keyPassword = "pssp123456"
+        }
+    }
     defaultConfig {
         applicationId = "com.pssp"
         minSdk = 24
@@ -22,6 +30,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("fixed")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
