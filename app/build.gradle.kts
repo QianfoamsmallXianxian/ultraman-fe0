@@ -9,9 +9,9 @@ android {
     signingConfigs {
         create("fixed") {
             storeFile = file("keystore/pssp.keystore")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "pssp123456"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "pssp"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "pssp123456"
+            storePassword = "pssp123456"
+            keyAlias = "pssp"
+            keyPassword = "pssp123456"
         }
     }
     defaultConfig {
