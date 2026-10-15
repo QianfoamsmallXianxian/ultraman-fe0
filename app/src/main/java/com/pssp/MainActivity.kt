@@ -1,9 +1,12 @@
 package com.pssp
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
@@ -15,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.zip.ZipInputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvCore: TextView
@@ -27,6 +32,9 @@ class MainActivity : AppCompatActivity() {
 
     private val exts = setOf("iso", "cso", "zso", "chd", "pbp", "elf", "prx", "bin")
     private val imgExts = setOf("jpg", "jpeg", "png", "webp")
+
+    private val ioExecutor = Executors.newFixedThreadPool(4)
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     data class GameItem(val file: DocumentFile, val name: String, val cover: Uri?)
 
@@ -58,7 +66,7 @@ class MainActivity : AppCompatActivity() {
         tvEmpty = findViewById(R.id.tvEmpty)
 
         val ok = EmulatorBridge.ensureLoaded()
-        tvCore.text = if (ok) "内核: ppsspp" else " 内核: 加载失败"
+        tvCore.text = if (ok) "内核: ppsspp" else "内核: 加载失败"
 
         listGames.adapter = GameAdapter()
         listGames.setOnItemClickListener { _, _, pos, _ ->
@@ -134,6 +142,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun extractIsoIcon(uri: Uri): Bitmap? {
+        try {
+            val stream = contentResolver.openInputStream(uri) ?: return null
+            val zip = ZipInputStream(stream)
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (entry.name.endsWith("PSP_GAME/ICON0.PNG", ignoreCase = true)) {
+                    val bmp = BitmapFactory.decodeStream(zip)
+                    zip.close()
+                    stream.close()
+                    return bmp
+                }
+                entry = zip.nextEntry
+            }
+            zip.close()
+            stream.close()
+        } catch (_: Exception) {}
+        return null
+    }
+
     private inner class GameAdapter : BaseAdapter() {
         override fun getCount(): Int = games.size
         override fun getItem(position: Int): Any = games[position]
@@ -147,6 +175,7 @@ class MainActivity : AppCompatActivity() {
             val iv = v.findViewById<ImageView>(R.id.ivCover)
 
             iv.setImageResource(R.drawable.ic_ultraman)
+
             if (it.cover != null) {
                 try {
                     val stream = contentResolver.openInputStream(it.cover)
@@ -157,12 +186,17 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val tag = it.name
                 iv.tag = tag
-                iv.setImageResource(R.drawable.ic_ultraman)
                 ioExecutor.execute {
-                    val bmp = extractIsoIcon(it.file.uri)
-                    if (bmp != null) {
+                    val isoBmp = extractIsoIcon(it.file.uri)
+                    if (isoBmp != null) {
                         mainHandler.post {
-                            if (iv.tag == tag) iv.setImageBitmap(bmp)
+                            if (iv.tag == tag) iv.setImageBitmap(isoBmp)
+                        }
+                    } else {
+                        CoverDownloader.load(this@MainActivity, it.name) { bmp ->
+                            if (iv.tag == tag && bmp != null) {
+                                mainHandler.post { iv.setImageBitmap(bmp) }
+                            }
                         }
                     }
                 }
