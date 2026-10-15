@@ -155,9 +155,16 @@ class MainActivity : AppCompatActivity() {
                     if (bmp != null) iv.setImageBitmap(bmp)
                 } catch (_: Exception) {}
             } else {
-                iv.tag = it.name
-                CoverDownloader.load(this@MainActivity, it.name) { bmp ->
-                    if (iv.tag == it.name && bmp != null) iv.setImageBitmap(bmp)
+                val tag = it.name
+                iv.tag = tag
+                iv.setImageResource(R.drawable.ic_ultraman)
+                ioExecutor.execute {
+                    val bmp = extractIsoIcon(it.file.uri)
+                    if (bmp != null) {
+                        mainHandler.post {
+                            if (iv.tag == tag) iv.setImageBitmap(bmp)
+                        }
+                    }
                 }
             }
             return v
